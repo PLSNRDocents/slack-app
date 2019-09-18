@@ -1,0 +1,6 @@
+.idea
+.pytest_cache
+
+py3.7env/
+
+.DS_Store
