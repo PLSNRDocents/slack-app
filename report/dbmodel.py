@@ -10,9 +10,56 @@ db = SQLAlchemy()
 STATUS_REPORTED = "reported"
 STATUS_CONFIRMED = "confirmed"
 STATUS_CLOSED = "closed"
+TYPE_TRAIL = "trail"
+TYPE_DISTURBANCE = "disturbance"
+
+TRAIL_VALUE_2_DESC = {
+    "gp": "Granite Point",
+    "wc": "Whaler's Cove",
+    "ns": "North Shore",
+    "cg": "Cypress Grove",
+    "slp": "Sea Lion Pt",
+    "ss": "South Shore",
+    "bi": "Bird Island",
+    "sp": "South Plateau",
+    "pw": "Piney Woods",
+}
+
+# This is a comprehensive list for ALL report types
+ISSUES_2_DESC = {
+    "po": "Poison Oak",
+    "sign": "Sign Missing/Broken",
+    "ca": "Broken Cable",
+    "tree": "Tree/obstruction",
+    "step": "Broken Steps",
+    "ot": "Other",
+    "pin": "Pinnipeds",
+    "ott": "Otters",
+    "bird": "Birds",
+    "off": "Off designated trails outside of the wire guides",
+    "jump": "Jumping off rocks into or swimming in the ocean",
+    "climb": "Climbing trees or off trail rocks or cliffs",
+    "eat": "Picnicking in areas other than the designated areas",
+    "pet": "Pets within the park (other than identified service animals)",
+    "bike": "Biking off the paved road",
+    "tide": "Collecting or disturbing tide pool marine life",
+    "take": "Collecting and removing natural objects",
+    "evil": "Vandalizing natural or manmade features (graffiti)",
+    "drone": "Drones, any use regardless of disturbance",
+    "air": "Airplane flying low",
+    "fish": "Fishing boat with deployed lines, nets or poles within the Reserve",
+}
+
+
+def xlate_issues(issues):
+    # translate comma separated issue names to descriptions
+    return ", ".join([ISSUES_2_DESC[i] for i in issues.split(",")])
 
 
 class ReportModel(db.Model):
+    """
+    Information about any report - trail or disturbance.
+    """
 
     id: int = db.Column(db.Integer, primary_key=True)
     create_datetime = db.Column(db.DateTime, nullable=False)
@@ -23,12 +70,15 @@ class ReportModel(db.Model):
         server_default=func.now(),
         onupdate=datetime.datetime.utcnow,
     )
+    type: str = db.Column(db.String(length=32), nullable=False)
 
     # e.g. trail name
-    location: str = db.Column(db.String(length=64), nullable=False)
+    location: str = db.Column(db.String(length=16), nullable=False)
 
-    # e.g. tree/obstruction
-    issue: str = db.Column(db.String(length=128), nullable=False)
+    cross_trail: str = db.Column(db.String(length=16), nullable=True)
+
+    # e.g. tree/obstruction - comma separated
+    issues: str = db.Column(db.String(length=256), nullable=False)
 
     # ideally the real name
     reporter: str = db.Column(db.String(length=128))
@@ -48,7 +98,6 @@ class ReportModel(db.Model):
     photos = db.relationship(
         "PhotoModel",
         backref="report",
-        lazy="dynamic",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )

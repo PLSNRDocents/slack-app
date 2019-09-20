@@ -5,7 +5,7 @@ Migrate db using Alembic and flask-migrate
 activate venv
 PLSNRENV=Dev FLASK_APP=manage flask db history
 
-FLASK_APP=manage flask db migrate -m 'reason'
+PLSNRENV=Dev FLASK_APP=manage flask db migrate -m 'reason'
 
 Edit migration version file then:
 
