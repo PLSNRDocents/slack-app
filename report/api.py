@@ -8,18 +8,10 @@ from flask import Blueprint, Flask, abort, current_app, jsonify, request
 import slack
 
 from asyncev import event_loop
-from dbmodel import (
-    TRAIL_VALUE_2_DESC,
-    TYPE_TRAIL,
-    TYPE_DISTURBANCE,
-    ISSUES_2_DESC,
-    PhotoModel,
-    xlate_issues,
-)
-import image
+from dbmodel import TRAIL_VALUE_2_DESC, TYPE_TRAIL, TYPE_DISTURBANCE, ISSUES_2_DESC
 from otterbot import talk_to_me
 import report
-from slack_api import get_file_info, post_message, post, send_update
+from slack_api import get_file_info, post, post_message, send_update
 
 api = Blueprint("api", __name__, url_prefix="/")
 logger = logging.getLogger("report")
@@ -46,8 +38,7 @@ def top():
         )
         try:
             _, rid = rtype.split(" ")
-            if rid.startswith("TR-") or rid.startswith("DR-"):
-                rid = rid[3:]
+            rid = current_app.report.name_to_id(rid)
             # TODO convert to async
             current_app.report.delete(rid)
         except ValueError:
@@ -112,7 +103,9 @@ def events():
             logger.info(
                 "App_mention from {} channel {}".format(event["user"], event["channel"])
             )
-            talk_to_me(event)
+            event_loop.call_soon_threadsafe(
+                talk_to_me, event, current_app._get_current_object()
+            )
         elif event["type"] == "file_created" or event["type"] == "file_shared":
             logger.info(
                 "Event {} from {} channel {}".format(
@@ -150,7 +143,7 @@ def handle_file(event, app: Flask):
                 r.reporter_slack_id == event["user_id"]
                 and r.channel == event["channel_id"]
                 and (datetime.datetime.utcnow() - r.update_datetime)
-                < datetime.timedelta(minutes=15)
+                < datetime.timedelta(minutes=5)
             ):
                 matched.append(r)
         if len(matched) != 1:
@@ -168,23 +161,7 @@ def handle_file(event, app: Flask):
                 event["user_id"],
                 "Retrieving file and grabbing GPS info.. thanks.",
             )
-
-            r = matched[0]
-            lat = None
-            lon = None
-            if not r.gps:
-                # fetch image, find GPS coordinates - note that IOS actually strips this
-                # so likely we won't find any.
-                photo = image.fetch_image(finfo["url_private"])
-                exif_data = image.get_exif_data(photo)
-                lat, lon = image.get_lat_lon(exif_data)
-            photo = PhotoModel(r, slack_file_id=event["file_id"])
-            photo.s3_url = finfo["url_private"]  # Not really.
-
-            with app.report.acquire_for_update(r, photo) as lrm:
-                # lrm is now a locked for update version of 'r'.
-                if lat and lon:
-                    r.gps = "{},{}".format(lat, lon)
+            report.add_photo(app, finfo, matched[0])
 
 
 def open_trail_report_dialogue(trigger):

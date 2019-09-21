@@ -9,6 +9,7 @@ import sqlalchemy
 from sqlalchemy.orm import joinedload
 
 from dbmodel import TYPE_DISTURBANCE, TYPE_TRAIL, PhotoModel, ReportModel
+import image
 import slack_api
 
 
@@ -43,8 +44,8 @@ class Report:
             slack_api.post_message(
                 channel["id"],
                 who["id"],
-                "Report {} saved. Consider adding photos.".format(
-                    Report.report_name(nr)
+                "Report [{}] saved. Consider adding photos.".format(
+                    Report.id_to_name(nr)
                 ),
             )
 
@@ -81,7 +82,7 @@ class Report:
             nrm = ReportModel.query.with_for_update().get(rm.id)
             if not nrm:
                 self._logger.warning("Report disappeared %s", rm.id)
-                raise Exception('Invalid report id: {}'.format(rm.id))
+                raise Exception("Invalid report id: {}".format(rm.id))
             if photo:
                 self._db.session.add(photo)
             yield nrm
@@ -91,11 +92,35 @@ class Report:
             raise
 
     @staticmethod
-    def report_name(rm):
+    def id_to_name(rm):
         if rm.type == TYPE_TRAIL:
-            rid = "[TR-{}]".format(rm.id)
+            rid = "TR-{}".format(rm.id)
         elif rm.type == TYPE_DISTURBANCE:
-            rid = "[DR-{}]".format(rm.id)
+            rid = "DR-{}".format(rm.id)
         else:
             rid = rm.id
         return rid
+
+    @staticmethod
+    def name_to_id(rname):
+        if rname.startswith("TR-") or rname.startswith("DR-"):
+            rname = rname[3:]
+        return rname
+
+
+def add_photo(app, finfo, rm):
+    lat = None
+    lon = None
+    if not rm.gps:
+        # fetch image, find GPS coordinates - note that IOS actually strips this
+        # so likely we won't find any.
+        photo = image.fetch_image(finfo["url_private"])
+        exif_data = image.get_exif_data(photo)
+        lat, lon = image.get_lat_lon(exif_data)
+    photo = PhotoModel(rm, slack_file_id=finfo["id"])
+    photo.s3_url = finfo["url_private"]  # Not really.
+
+    with app.report.acquire_for_update(rm, photo):
+        # lrm is now a locked for update version of 'rm'.
+        if lat and lon:
+            rm.gps = "{},{}".format(lat, lon)
