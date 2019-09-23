@@ -7,3 +7,7 @@ class SlackApiError(Exception):
 
 class ParseError(Exception):
     pass
+
+
+class S3Error(Exception):
+    pass

@@ -6,17 +6,12 @@ Handle our chat-bot.
 
 import datetime
 import logging
+import json
 from random import randint
 
 from flask import Flask
 
-from dbmodel import (
-    TRAIL_VALUE_2_DESC,
-    TYPE_TRAIL,
-    TYPE_DISTURBANCE,
-    ISSUES_2_DESC,
-    xlate_issues,
-)
+from dbmodel import TRAIL_VALUE_2_DESC, TYPE_TRAIL, xlate_issues
 
 import plweb
 from quotes import QUOTES
@@ -74,12 +69,15 @@ def talk_to_me(event, app: Flask):
                     )
                     if len(r.photos) > 0:
                         # blocks.append(text_block(text))
-                        url = "https://photos.smugmug.com/Public/Point-Lobos/i-66GZC52/0/c07785d6/X2/DSC_2691-X2.jpg"
-                        url = r.photos[0].s3_url
                         url = "https://slack-files.com/TODJUU16J-FN7GS9OD8-c5fe8ef934"
-                        url = "https://pldocents.slack.com/files/U4DUR80RG/FNL492VJQ/image_from_ios__2_.jpg"
+                        url = "https://files.slack.com/files-pri/T0DJUU16J-FNM7VV9FF/image_from_ios__2_.jpg"
+                        url = "https://s3.us-east-1.amazonaws.com/{}/{}".format(
+                            app.config["S3_BUCKET"], r.photos[0].s3_url
+                        )
                         blocks.append(text_image(text, url))
-
+                        logger.debug(
+                            "Image block {}".format(json.dumps(text_image(text, url)))
+                        )
                     else:
                         blocks.append(text_block(text))
             post_message(event["channel"], event["user"], blocks)
@@ -103,18 +101,21 @@ def talk_to_me(event, app: Flask):
                     )
                     return
                 for finfo in event["files"]:
-                    logger.info("Adding file {}".format(finfo))
+                    logger.info("Adding file {}".format(json.dumps(finfo)))
                     report.add_photo(app, finfo, rm)
                 post_message(
                     event["channel"],
                     event["user"],
                     "Added {} photos to report {}".format(len(event["files"]), rname),
                 )
-            except (ValueError, IndexError):
+            except (ValueError, IndexError) as exc:
+                logging.error(
+                    "Error handling photo for report {}: {}".format(rm.id, exc)
+                )
                 post_message(
                     event["channel"],
                     event["user"],
-                    "Use 'photo report_id' to add a photo to an existing report",
+                    "Use 'photo report-name' to add a photo to an existing report",
                 )
         elif whatsup[1] == "at":
             where = None
@@ -136,7 +137,7 @@ def talk_to_me(event, app: Flask):
         else:
             blocks = [
                 text_block(
-                    "Hmm I don't understand. You can ask for"
+                    "Sorry didn't hear you - I was eating.\nYou can ask for"
                     " 'reports' or 'photo' or 'at'."
                 )
             ]

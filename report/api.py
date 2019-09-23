@@ -28,19 +28,41 @@ def top():
     ):
         abort(403)
 
-    rtype = request.form["text"].strip()
-    if rtype.startswith("delete"):
+    # remove all extraneous white space and put into list.
+    rrequest = " ".join(request.form["text"].split()).split()
+    if rrequest[0].startswith("delete"):
         # TODO authz
+        # We handle delete report_id
+        # and delete report_id photos
+        if len(rrequest) == 2:
+            # delete entire report
+            just_photos = False
+        elif len(rrequest) == 3 and rrequest[2] == "photos":
+            just_photos = True
+        else:
+            return (
+                jsonify(
+                    {
+                        "response_type": "ephemeral",
+                        "text": "Either delete report_id or delete report_id photos",
+                    }
+                ),
+                200,
+            )
+
+        rid = rrequest[1]
         logger.info(
-            "User {} requesting to delete report {}".format(
-                request.form["user_id"], rtype
+            "User {} requesting to delete {} {}".format(
+                request.form["user_id"], "photos" if just_photos else "report", rid
             )
         )
+        # TODO convert to async
         try:
-            _, rid = rtype.split(" ")
             rid = current_app.report.name_to_id(rid)
-            # TODO convert to async
-            current_app.report.delete(rid)
+            if just_photos:
+                current_app.report.delete_photos(rid)
+            else:
+                current_app.report.delete(rid)
         except ValueError:
             return (
                 jsonify(
@@ -53,10 +75,10 @@ def top():
             )
         return "", 200
 
-    if rtype.startswith("t"):
+    if rrequest[0].startswith("t"):
         open_trail_report_dialogue(request.form["trigger_id"])
         return "", 200
-    elif rtype.startswith("d"):
+    elif rrequest[0].startswith("d"):
         open_disturbance_report_dialogue(request.form["trigger_id"])
         return "", 200
     return (

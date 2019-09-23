@@ -8,3 +8,5 @@ class Settings:
 
 class DevSettings(Settings):
     SQLALCHEMY_DATABASE_URI = "postgresql://jwag@localhost/plsnr"
+
+    S3_BUCKET = "plsnr-slack-test"

@@ -10,6 +10,7 @@ from api import api
 import asyncev
 from dbmodel import db
 from report import Report
+import s3
 
 REQUIRED_CONFIG = ["SIGNING_SECRET", "BOT_TOKEN"]
 
@@ -42,6 +43,8 @@ def create_app():
     app.register_blueprint(api)
 
     app.report = Report(db, app)
+    app.s3 = s3.S3Storage(app.config)
+    app.s3.init()
 
     @app.before_first_request
     def start_async():

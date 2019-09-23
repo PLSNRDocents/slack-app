@@ -8,7 +8,7 @@ from PIL.ExifTags import TAGS, GPSTAGS
 import requests
 
 
-def fetch_image(url):
+def fetch_image(url) -> Image.Image:
     headers = {"Authorization": "Bearer {}".format(os.environ["BOT_TOKEN"])}
     r = requests.get(url, stream=True, headers=headers)
     if r.status_code == 200:

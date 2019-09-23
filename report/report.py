@@ -2,7 +2,9 @@
 
 from contextlib import contextmanager
 import logging
+from tempfile import NamedTemporaryFile
 from typing import List
+import os
 
 from flask import Flask
 import sqlalchemy
@@ -11,6 +13,8 @@ from sqlalchemy.orm import joinedload
 from dbmodel import TYPE_DISTURBANCE, TYPE_TRAIL, PhotoModel, ReportModel
 import image
 import slack_api
+
+logger = logging.getLogger(__name__)
 
 
 # Used so we can easily mock out in unit tests.
@@ -60,7 +64,7 @@ class Report:
         return query.all()
 
     def get(self, rid) -> ReportModel:
-        r = ReportModel.query.get(rid)
+        r = ReportModel.query.options(joinedload("photos")).get(rid)
         return r
 
     def delete(self, rid):
@@ -68,6 +72,15 @@ class Report:
         if not r:
             raise ValueError()
         self._db.session.delete(r)
+        self._db.session.commit()
+
+    def delete_photos(self, rid):
+        # delete all photos but leave report alone
+        r = self.get(rid)
+        if not r:
+            raise ValueError()
+        for p in r.photos:
+            self._db.session.delete(p)
         self._db.session.commit()
 
     @contextmanager
@@ -108,19 +121,41 @@ class Report:
         return rname
 
 
-def add_photo(app, finfo, rm):
+def add_photo(app, finfo, rm: ReportModel):
     lat = None
     lon = None
+    im = image.fetch_image(finfo["url_private"])
     if not rm.gps:
         # fetch image, find GPS coordinates - note that IOS actually strips this
         # so likely we won't find any.
-        photo = image.fetch_image(finfo["url_private"])
-        exif_data = image.get_exif_data(photo)
+        exif_data = image.get_exif_data(im)
         lat, lon = image.get_lat_lon(exif_data)
+    # Save locally so can upload to S3
+    local_file = NamedTemporaryFile(suffix="." + finfo["filetype"])
+    im.save(local_file.name)
+
+    s3_finfo = app.s3.save(
+        local_file.name,
+        finfo["filetype"],
+        finfo["mimetype"],
+        Report.id_to_name(rm),
+        rm.id,
+    )
     photo = PhotoModel(rm, slack_file_id=finfo["id"])
-    photo.s3_url = finfo["url_private"]  # Not really.
+    photo.s3_url = s3_finfo["path"]
 
     with app.report.acquire_for_update(rm, photo):
         # lrm is now a locked for update version of 'rm'.
         if lat and lon:
             rm.gps = "{},{}".format(lat, lon)
+
+
+def lax_remove(filename):
+    try:
+        os.remove(filename)
+    except FileNotFoundError:
+        pass
+    except OSError as ex:
+        logging.getLogger("lax_remove").warning(
+            "Could not remove file: %s reason: %s", filename, ex
+        )
