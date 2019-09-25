@@ -50,19 +50,17 @@ class S3Storage(object):
                 )
             )
 
-    def delete(self, location_info, rname):
-        self._logger.info(
-            "Trying to delete: %s for report: %s", location_info["path"], rname
-        )
+    def delete(self, path, rname):
+        self._logger.info("Trying to delete: %s for report: %s", path, rname)
 
         try:
             s3 = self._session.resource("s3", config=self._botoconfig)
-            s3.Object(location_info["s3bucket"], location_info["path"]).delete()
+            s3.Object(self._config["S3_BUCKET"], path).delete()
         except Exception as ex:
             self._logger.warning(
                 "Could not delete: %s from bucket: %s for report: %s reason: %s",
-                location_info["path"],
-                location_info["s3bucket"],
+                path,
+                self._config["S3_BUCKET"],
                 rname,
                 ex,
             )

@@ -7,6 +7,7 @@ from sqlalchemy.sql import func
 
 db = SQLAlchemy()
 
+STATUS_PLACEHOLDER = "placeholder"
 STATUS_REPORTED = "reported"
 STATUS_CONFIRMED = "confirmed"
 STATUS_CLOSED = "closed"
@@ -102,7 +103,7 @@ class ReportModel(db.Model):
         passive_deletes=True,
     )
 
-    def __init__(self, **kwargs):
+    def __init__(self, status, **kwargs):
         """ Init a dbmodel
         Of course - this is just for creating new - normally all these fields are
         filled in by a DB fetch.
@@ -112,7 +113,7 @@ class ReportModel(db.Model):
 
         self.create_datetime = datetime.datetime.utcnow()
         self.update_datetime = datetime.datetime.utcnow()
-        self.status = STATUS_REPORTED
+        self.status = status
 
         # overwrite with passed kwargs
         super().__init__(**kwargs)

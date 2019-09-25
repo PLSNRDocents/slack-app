@@ -13,6 +13,10 @@ from report import Report
 import s3
 
 REQUIRED_CONFIG = ["SIGNING_SECRET", "BOT_TOKEN"]
+LOG_FORMAT = (
+    "%(asctime)s.%(msecs)03d %(levelname)s Sywphoto:%(process)d %(name)s: %(message)s"
+)
+DATE_FMT = "%m/%d/%Y %H:%M:%S"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("report")
@@ -25,6 +29,7 @@ def get_action_values(info):
 def create_app():
     app = Flask(__name__)
 
+    logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FMT)
     logging.getLogger("botocore").setLevel(logging.INFO)
     logging.getLogger("boto3").setLevel(logging.INFO)
     logging.getLogger("urllib3").setLevel(logging.INFO)

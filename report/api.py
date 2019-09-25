@@ -44,7 +44,8 @@ def top():
                 jsonify(
                     {
                         "response_type": "ephemeral",
-                        "text": "Either delete report_id or delete report_id photos",
+                        "text": "Either /report delete report_id or"
+                        " /report delete report_id photos",
                     }
                 ),
                 200,
@@ -68,7 +69,8 @@ def top():
                 jsonify(
                     {
                         "response_type": "ephemeral",
-                        "text": "To delete a report: /report delete <report_number>",
+                        "text": "Either: /report delete <report_number> or\n"
+                        " /report delete <report_number> photo",
                     }
                 ),
                 200,
@@ -76,10 +78,10 @@ def top():
         return "", 200
 
     if rrequest[0].startswith("t"):
-        open_trail_report_dialogue(request.form["trigger_id"])
+        open_trail_report_dialogue(request.form["trigger_id"], "")
         return "", 200
     elif rrequest[0].startswith("d"):
-        open_disturbance_report_dialogue(request.form["trigger_id"])
+        open_disturbance_report_dialogue(request.form["trigger_id"], "")
         return "", 200
     return (
         jsonify(
@@ -98,21 +100,35 @@ def submit():
     rjson = json.loads(request.form["payload"])
     if rjson["type"] == "dialog_submission":
         event_loop.call_soon_threadsafe(
-            current_app.report.create,
-            rjson["callback_id"],
-            rjson["user"],
-            rjson["channel"],
-            rjson["submission"],
+            handle_report_submit, current_app._get_current_object(), rjson
         )
-        send_update(rjson["response_url"], "Thanks for your report.")
+        return "", 200
+    elif rjson["type"] == "block_actions":
+        # ts = rjson["container"]["message_ts"]
+        # trigger_id, response_url
+        rid = rjson["actions"][0]["block_id"]
+        state = json.dumps({"ru": rjson["response_url"], "rid": rid})
+        value = rjson["actions"][0]["selected_option"]["value"]
+        if value == "trail":
+            open_trail_report_dialogue(rjson["trigger_id"], state)
+        else:
+            open_disturbance_report_dialogue(rjson["trigger_id"], state)
         return "", 200
 
-    logger.error("Unhandled type {}".format(rjson["type"]))
+    logger.error("Unhandled type {}: {}".format(rjson["type"], rjson))
     return "", 200
 
 
 @api.route("/events", methods=["GET", "POST"])
 def events():
+    if not slack.WebClient.validate_slack_signature(
+        signing_secret=current_app.config["SIGNING_SECRET"],
+        data=request.get_data().decode("utf-8"),
+        timestamp=request.headers["X-Slack-Request-Timestamp"],
+        signature=request.headers["X-Slack-Signature"],
+    ):
+        abort(403)
+
     payload = request.json
 
     if payload["type"] == "url_verification":
@@ -186,7 +202,7 @@ def handle_file(event, app: Flask):
             report.add_photo(app, finfo, matched[0])
 
 
-def open_trail_report_dialogue(trigger):
+def open_trail_report_dialogue(trigger, state):
     trail_options = []
     for n, d in TRAIL_VALUE_2_DESC.items():
         trail_options.append(dict(label=d, value=n))
@@ -199,8 +215,8 @@ def open_trail_report_dialogue(trigger):
         "callback_id": TYPE_TRAIL,
         "title": "Trail Report",
         "submit_label": "Submit",
-        "notify_on_cancel": False,
-        "state": TYPE_TRAIL,
+        "notify_on_cancel": True,
+        "state": state,
         "elements": [
             {
                 "label": "Which Trail",
@@ -241,7 +257,7 @@ def open_trail_report_dialogue(trigger):
     post("dialog.open", dict(trigger_id=trigger, dialog=payload))
 
 
-def open_disturbance_report_dialogue(trigger):
+def open_disturbance_report_dialogue(trigger, state):
     trail_options = []
     for n, d in TRAIL_VALUE_2_DESC.items():
         trail_options.append(dict(label=d, value=n))
@@ -271,8 +287,8 @@ def open_disturbance_report_dialogue(trigger):
         "callback_id": TYPE_DISTURBANCE,
         "title": "Disturbance Report",
         "submit_label": "Submit",
-        "notify_on_cancel": False,
-        "state": TYPE_DISTURBANCE,
+        "notify_on_cancel": True,
+        "state": state,
         "elements": [
             {
                 "label": "Which Trail",
@@ -311,3 +327,48 @@ def open_disturbance_report_dialogue(trigger):
     }
 
     post("dialog.open", dict(trigger_id=trigger, dialog=payload))
+
+
+def handle_report_submit(app, rjson):
+    # Called on dialog submission.
+    with app.app_context():
+        if rjson["state"]:
+            # created via start_new / @xx new report
+            # state is json containing report id and response url
+            state = json.loads(rjson["state"])
+            nr = app.report.get(state["rid"])
+            if not nr:
+                # hmm - what happened to the report
+                post_message(
+                    rjson["channel"]["id"],
+                    rjson["user"]["id"],
+                    "Couldn't find report {}".format(state["rid"]),
+                )
+                return
+            logger.info("Finish report {}".format(nr.id))
+            nr = app.report.complete(
+                nr,
+                rjson["callback_id"],
+                rjson["user"],
+                rjson["channel"],
+                rjson["submission"],
+            )
+            # inform user - and replace initial message
+            send_update(
+                state["ru"],
+                "Report [{}] saved.".format(report.Report.id_to_name(nr)),
+                True,
+            )
+        else:
+            nr = app.report.create(
+                rjson["callback_id"],
+                rjson["user"],
+                rjson["channel"],
+                rjson["submission"],
+            )
+            # Inform user
+            post_message(
+                rjson["channel"]["id"],
+                rjson["user"]["id"],
+                "Report [{}] saved.".format(report.Report.id_to_name(nr)),
+            )

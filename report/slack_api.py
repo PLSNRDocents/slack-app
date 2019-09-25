@@ -22,15 +22,17 @@ def _chk_error(rv, endpoint):
     )
     if rv.status_code != 200 or (jresponse and "error" in jresponse):
         raise SlackApiError("Endpoint {} error {}".format(endpoint, jresponse["error"]))
+    return jresponse
 
 
 def post(endpoint, payload):
     headers = {
         "Authorization": "Bearer {}".format(os.environ["BOT_TOKEN"]),
         "Content-Type": "application/json;charset=utf-8",
+        "Accept": "application/json",
     }
     rv = requests.post(SLACK_URL + "/" + endpoint, headers=headers, json=payload)
-    _chk_error(rv, endpoint)
+    return _chk_error(rv, endpoint)
 
 
 def get_file_info(fid):
@@ -40,8 +42,12 @@ def get_file_info(fid):
     return rv.json()
 
 
-def send_update(response_url, text):
-    payload = {"text": text, "response_type": "ephemeral"}
+def send_update(response_url, text, replace_original=False):
+    payload = {
+        "text": text,
+        "response_type": "ephemeral",
+        "replace_original": replace_original,
+    }
     rv = requests.post(response_url, json=payload)
     _chk_error(rv, response_url)
 
@@ -52,4 +58,5 @@ def post_message(channel, user, payload):
     else:
         content = {"text": payload}
     content.update(channel=channel, user=user, as_user=True)
-    post("chat.postEphemeral", content)
+    jresponse = post("chat.postEphemeral", content)
+    return jresponse["message_ts"]

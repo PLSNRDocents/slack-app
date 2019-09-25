@@ -10,9 +10,16 @@ from flask import Flask
 import sqlalchemy
 from sqlalchemy.orm import joinedload
 
-from dbmodel import TYPE_DISTURBANCE, TYPE_TRAIL, PhotoModel, ReportModel
+from dbmodel import (
+    TYPE_DISTURBANCE,
+    TYPE_TRAIL,
+    PhotoModel,
+    ReportModel,
+    STATUS_CONFIRMED,
+    STATUS_PLACEHOLDER,
+    STATUS_REPORTED,
+)
 import image
-import slack_api
 
 logger = logging.getLogger(__name__)
 
@@ -28,35 +35,53 @@ class Report:
         self._app = app
         self._logger = logging.getLogger(__name__)
 
+    def _fillin(self, nr, rtype, who, channel, dinfo):
+        nr.type = rtype
+        nr.channel = channel["id"]
+        nr.details = dinfo["details"]
+        nr.location = dinfo["location"]
+        nr.issues = dinfo["issues"]
+        nr.gps = dinfo["gps"]
+        nr.cross_trail = dinfo["cross"]
+        nr.reporter_slack_handle = who["name"]
+        nr.reporter_slack_id = who["id"]
+
+        self._db.session.add(nr)
+        self._db.session.commit()
+
     def create(self, rtype, who, channel, dinfo):
-        # This is run in an eventloop - so need to push app context.
-        with self._app.app_context():
-            nr = ReportModel(type=rtype)
-            nr.channel = channel["id"]
-            nr.details = dinfo["details"]
-            nr.location = dinfo["location"]
-            nr.issues = dinfo["issues"]
-            nr.gps = dinfo["gps"]
-            nr.cross_trail = dinfo["cross"]
-            nr.reporter_slack_handle = who["name"]
-            nr.reporter_slack_id = who["id"]
+        nr = ReportModel(type=rtype, status=STATUS_REPORTED)
+        self._fillin(nr, rtype, who, channel, dinfo)
+        return self.get(nr.id)
 
-            self._db.session.add(nr)
-            self._db.session.commit()
+    def complete(self, nr, rtype, who, channel, dinfo):
+        # Finish up a report created via start_new
+        nr.status = STATUS_REPORTED
+        self._fillin(nr, rtype, who, channel, dinfo)
+        return self.get(nr.id)
 
-            # Inform user
-            slack_api.post_message(
-                channel["id"],
-                who["id"],
-                "Report [{}] saved. Consider adding photos.".format(
-                    Report.id_to_name(nr)
-                ),
-            )
+    def start_new(self):
+        """ When creating a report using interactive messages and photos
+        were uploaded at the beginning.
+        """
+        nr = ReportModel(type="Unknown", status=STATUS_PLACEHOLDER)
+        nr.location = "Unknown"
+        nr.issues = "Unknown"
+        self._db.session.add(nr)
+        self._db.session.commit()
+        return self.get(nr.id)
 
-    def fetch_all(self, limit=10) -> List[ReportModel]:
+    def fetch_all(self, limit=10, active=True) -> List[ReportModel]:
         query = ReportModel.query
 
         query = query.options(joinedload("photos"))
+        if active:
+            query = query.filter(
+                sqlalchemy.or_(
+                    ReportModel.status == STATUS_REPORTED,
+                    ReportModel.status == STATUS_CONFIRMED,
+                )
+            )
 
         query = query.order_by(sort_by_date())
         if limit:
@@ -71,6 +96,9 @@ class Report:
         r = self.get(rid)
         if not r:
             raise ValueError()
+        for p in r.photos:
+            # remove from S3. PhotoModels will be automatically deleted.
+            self._app.s3.delete(p.s3_url, Report.id_to_name(r))
         self._db.session.delete(r)
         self._db.session.commit()
 
@@ -80,6 +108,7 @@ class Report:
         if not r:
             raise ValueError()
         for p in r.photos:
+            self._app.s3.delete(p.s3_url, Report.id_to_name(r))
             self._db.session.delete(p)
         self._db.session.commit()
 
@@ -122,6 +151,7 @@ class Report:
 
 
 def add_photo(app, finfo, rm: ReportModel):
+    # Assume called in app context.
     lat = None
     lon = None
     im = image.fetch_image(finfo["url_private"])
@@ -145,7 +175,7 @@ def add_photo(app, finfo, rm: ReportModel):
     photo.s3_url = s3_finfo["path"]
 
     with app.report.acquire_for_update(rm, photo):
-        # lrm is now a locked for update version of 'rm'.
+        # report is locked, and photo has been added to session.
         if lat and lon:
             rm.gps = "{},{}".format(lat, lon)
 

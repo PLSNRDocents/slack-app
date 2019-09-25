@@ -11,7 +11,7 @@ from random import randint
 
 from flask import Flask
 
-from dbmodel import TRAIL_VALUE_2_DESC, TYPE_TRAIL, xlate_issues
+from dbmodel import TRAIL_VALUE_2_DESC, TYPE_DISTURBANCE, TYPE_TRAIL, xlate_issues
 
 import plweb
 from quotes import QUOTES
@@ -31,6 +31,7 @@ def talk_to_me(event, app: Flask):
     Commands:
     "reports"
     "photo <report id>"
+    "new"
     "at info"
 
     """
@@ -42,7 +43,7 @@ def talk_to_me(event, app: Flask):
 
         if whatsup[1].startswith("report"):
             blocks = []
-            blocks.append(text_block("*Current Trail Reports*"))
+            blocks.append(text_block("*Current Trail Reports:*"))
 
             reports = app.report.fetch_all()
             if reports:
@@ -58,7 +59,7 @@ def talk_to_me(event, app: Flask):
                         ),
                         r.create_datetime,
                     )
-                    text = "[{}] {} {} reported {}:\n{} on {} {}".format(
+                    text = "[{}] {} {} reported {}:\n*{}* on _{}_ {}".format(
                         app.report.id_to_name(r),
                         dt,
                         r.reporter_slack_handle,
@@ -117,6 +118,28 @@ def talk_to_me(event, app: Flask):
                     event["user"],
                     "Use 'photo report-name' to add a photo to an existing report",
                 )
+        elif whatsup[1] == "new":
+            # create new report to store photos
+            nr = app.report.start_new()
+            logger.info("Starting new report {}".format(nr.id))
+
+            # start an interactive message.
+            # Seems safe enough to do this now - it takes a while to save files
+            # and that confuses users.
+            b = select_block(
+                nr.id,
+                "What type of report",
+                "Select an item",
+                [("Trail", TYPE_TRAIL), ("Disturbance", TYPE_DISTURBANCE)],
+            )
+            post_message(event["channel"], event["user"], [b])
+
+            # grab photos
+            if "files" in event:
+                for finfo in event["files"]:
+                    logger.info("Adding file {} to {}".format(json.dumps(finfo), nr.id))
+                    report.add_photo(app, finfo, nr)
+
         elif whatsup[1] == "at":
             where = None
             if len(whatsup) > 2:
@@ -137,8 +160,11 @@ def talk_to_me(event, app: Flask):
         else:
             blocks = [
                 text_block(
-                    "Sorry didn't hear you - I was eating.\nYou can ask for"
-                    " 'reports' or 'photo' or 'at'."
+                    "Sorry didn't hear you - I was slepping.\nYou can ask for:\n"
+                    "*reports* - Show most recent trail/disturbabce reports\n"
+                    "*photo* - Add photos to an existing report\n"
+                    "*new* - Add a report with photos\n"
+                    "*at* - who's doing what at the reserve today."
                 )
             ]
 
@@ -161,5 +187,46 @@ def text_image(text, url):
         "type": "section",
         "text": {"type": "mrkdwn", "text": text},
         "accessory": {"type": "image", "image_url": url, "alt_text": "image"},
+    }
+    return b
+
+
+def select_block(block_id, text, place_text, options: list):
+    # Create a select block.
+    # options should be a list of tuples (text, value)
+    ops = []
+    for o in options:
+        ops.append({"text": {"type": "plain_text", "text": o[0]}, "value": o[1]})
+    b = {
+        "type": "section",
+        "block_id": str(block_id),
+        "text": {"type": "mrkdwn", "text": text},
+        "accessory": {
+            "action_id": "123",
+            "type": "static_select",
+            "placeholder": {"type": "plain_text", "text": place_text},
+            "options": ops,
+        },
+    }
+    return b
+
+
+def action_block(block_id, place_text, options: list):
+    # Create a actions select block.
+    # options should be a list of tuples (text, value)
+    ops = []
+    for o in options:
+        ops.append({"text": {"type": "plain_text", "text": o[0]}, "value": o[1]})
+    b = {
+        "type": "actions",
+        "block_id": str(block_id),
+        "elements": [
+            {
+                "action_id": "456",
+                "type": "static_select",
+                "placeholder": {"type": "plain_text", "text": place_text},
+                "options": ops,
+            }
+        ],
     }
     return b
