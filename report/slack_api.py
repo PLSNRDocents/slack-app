@@ -3,6 +3,7 @@
 import logging
 import os
 
+import cachetools.func
 import requests
 
 from exc import SlackApiError
@@ -35,6 +36,19 @@ def post(endpoint, payload):
     return _chk_error(rv, endpoint)
 
 
+def get(endpoint, slack_id):
+    headers = {
+        "Authorization": "Bearer {}".format(os.environ["BOT_TOKEN"]),
+        "Content-Type": "application/json;charset=utf-8",
+        "Accept": "application/json",
+    }
+    rv = requests.get(
+        SLACK_URL + "/" + endpoint, headers=headers, params={"user": slack_id}
+    )
+    rv.raise_for_status()
+    return rv.json()
+
+
 def get_file_info(fid):
     headers = {"Authorization": "Bearer {}".format(os.environ["BOT_TOKEN"])}
     rv = requests.get(SLACK_URL + "/files.info", headers=headers, params={"file": fid})
@@ -60,3 +74,12 @@ def post_message(channel, user, payload):
     content.update(channel=channel, user=user, as_user=True)
     jresponse = post("chat.postEphemeral", content)
     return jresponse["message_ts"]
+
+
+@cachetools.func.ttl_cache(600, ttl=60*60*24)
+def user_to_name(slack_user_id):
+    try:
+        j = get("users.info", slack_user_id)
+        return j["user"]["real_name"]
+    except Exception:
+        return ""

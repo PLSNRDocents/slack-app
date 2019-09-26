@@ -29,9 +29,9 @@ def talk_to_me(event, app: Flask):
     TODO: NLP
 
     Commands:
-    "reports"
+    "report(s)"
     "photo <report id>"
-    "new"
+    "new r(eport)"
     "at info"
 
     """
@@ -48,6 +48,7 @@ def talk_to_me(event, app: Flask):
             reports = app.report.fetch_all()
             if reports:
                 for r in reports:
+                    blocks.append(divider_block())
                     gps = ""
                     if r.gps:
                         gps = "GPS {}".format(r.gps)
@@ -59,10 +60,10 @@ def talk_to_me(event, app: Flask):
                         ),
                         r.create_datetime,
                     )
-                    text = "[{}] {} {} reported {}:\n*{}* on _{}_ {}".format(
+                    text = "[{}] {} _{}_ reported {}:\n*{}* on _{}_ {}".format(
                         app.report.id_to_name(r),
                         dt,
-                        r.reporter_slack_handle,
+                        r.reporter if r.reporter else r.reporter_slack_handle,
                         "trail issue" if r.type == TYPE_TRAIL else "disturbance",
                         xlate_issues(r.issues),
                         TRAIL_VALUE_2_DESC[r.location],
@@ -119,6 +120,19 @@ def talk_to_me(event, app: Flask):
                     "Use 'photo report-name' to add a photo to an existing report",
                 )
         elif whatsup[1] == "new":
+            try:
+                what = whatsup[2]
+                if not what.startswith("r"):
+                    raise ValueError()
+            except (ValueError, IndexError):
+                post_message(
+                    event["channel"],
+                    event["user"],
+                    "Use: {} new r(eport) to start a new report (with photos).".format(
+                        app.config["BOT_NAME"]
+                    ),
+                )
+                return
             # create new report to store photos
             nr = app.report.start_new()
             logger.info("Starting new report {}".format(nr.id))
@@ -149,7 +163,7 @@ def talk_to_me(event, app: Flask):
                 event["user"],
                 [text_block("Give me a sec to look this up.")],
             )
-            atinfo = plweb.whoat(where)
+            atinfo = plweb.whoat(datetime.date.today().strftime("%Y%m%d"), where)
             blocks = []
             for loc, what in atinfo.items():
                 t = "*{}:*".format(loc)
@@ -230,3 +244,7 @@ def action_block(block_id, place_text, options: list):
         ],
     }
     return b
+
+
+def divider_block():
+    return {"type": "divider"}

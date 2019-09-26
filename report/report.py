@@ -20,6 +20,7 @@ from dbmodel import (
     STATUS_REPORTED,
 )
 import image
+import slack_api
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class Report:
         nr.cross_trail = dinfo["cross"]
         nr.reporter_slack_handle = who["name"]
         nr.reporter_slack_id = who["id"]
+        nr.reporter = slack_api.user_to_name(who["id"])
 
         self._db.session.add(nr)
         self._db.session.commit()

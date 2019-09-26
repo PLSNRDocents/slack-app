@@ -5,6 +5,7 @@ import os
 
 
 from bs4 import BeautifulSoup
+import cachetools.func
 import requests
 
 from exc import ParseError
@@ -90,11 +91,14 @@ def today(page):
             return ans
 
 
-def whoat(where=None):
+@cachetools.func.ttl_cache(600, ttl=60*60)
+def whoat(when, where=None):
     """
     Get info on who is where by querying calendars.
     If 'where' is None - try to find everything going on.
     Works for 'today' only.
+    The 'when' argument is needed for proper caching - and should be
+    unique for the day - e.g. 20191001
     """
     if not where:
         where = ["info", "whalers"]
