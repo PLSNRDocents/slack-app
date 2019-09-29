@@ -41,7 +41,7 @@ def talk_to_me(event, app: Flask):
         whatsup = " ".join(event["text"].split()).split()
         # First word is the @mention
 
-        if whatsup[1].startswith("report"):
+        if whatsup[1].startswith("rep"):
             blocks = []
             blocks.append(text_block("*Current Trail Reports:*"))
 
@@ -72,7 +72,10 @@ def talk_to_me(event, app: Flask):
                     if len(r.photos) > 0:
                         # blocks.append(text_block(text))
                         url = "https://slack-files.com/TODJUU16J-FN7GS9OD8-c5fe8ef934"
-                        url = "https://files.slack.com/files-pri/T0DJUU16J-FNM7VV9FF/image_from_ios__2_.jpg"
+                        url = (
+                            "https://files.slack.com/files-pri/"
+                            "T0DJUU16J-FNM7VV9FF/image_from_ios__2_.jpg"
+                        )
                         url = "https://s3.us-east-1.amazonaws.com/{}/{}".format(
                             app.config["S3_BUCKET"], r.photos[0].s3_url
                         )
@@ -117,7 +120,8 @@ def talk_to_me(event, app: Flask):
                 post_message(
                     event["channel"],
                     event["user"],
-                    "Use 'photo report-name' to add a photo to an existing report",
+                    "Use: *@{}* photo _report-id_ to add attached photo"
+                    " to an existing report".format(app.config["BOT_NAME"]),
                 )
         elif whatsup[1] == "new":
             try:
@@ -128,9 +132,8 @@ def talk_to_me(event, app: Flask):
                 post_message(
                     event["channel"],
                     event["user"],
-                    "Use: {} new r(eport) to start a new report (with photos).".format(
-                        app.config["BOT_NAME"]
-                    ),
+                    "Use: *@{}* new r(eport) to start a"
+                    " new report (with photos).".format(app.config["BOT_NAME"]),
                 )
                 return
             # create new report to store photos
@@ -154,6 +157,54 @@ def talk_to_me(event, app: Flask):
                     logger.info("Adding file {} to {}".format(json.dumps(finfo), nr.id))
                     report.add_photo(app, finfo, nr)
 
+        elif whatsup[1].startswith("del"):
+            # TODO authz
+            # We handle delete report_id
+            # and delete report_id photos
+            if len(whatsup) == 3:
+                # delete entire report
+                just_photos = False
+            elif len(whatsup) == 4 and whatsup[3].startswith("photo"):
+                just_photos = True
+            else:
+                post_message(
+                    event["channel"],
+                    event["user"],
+                    "Use: *@{}* delete _report_id_ OR"
+                    " {} delete _report_id_ photos".format(
+                        app.config["BOT_NAME"], app.config["BOT_NAME"]
+                    ),
+                )
+                return
+
+            rname = whatsup[2]
+            logger.info(
+                "User {} requesting to delete {} {}".format(
+                    event["user"], "photos" if just_photos else "report", rname
+                )
+            )
+            try:
+                rid = app.report.name_to_id(rname)
+                if just_photos:
+                    app.report.delete_photos(rid)
+                else:
+                    app.report.delete(rid)
+                post_message(
+                    event["channel"],
+                    event["user"],
+                    "Deleted {} report {}".format(
+                        "photos from" if just_photos else "", rname
+                    ),
+                )
+            except ValueError:
+                post_message(
+                    event["channel"],
+                    event["user"],
+                    "Use: *@{}* delete _report_id_ OR"
+                    " {} delete _report_id_ photos".format(
+                        app.config["BOT_NAME"], app.config["BOT_NAME"]
+                    ),
+                )
         elif whatsup[1] == "at":
             where = None
             if len(whatsup) > 2:
@@ -166,19 +217,22 @@ def talk_to_me(event, app: Flask):
             atinfo = plweb.whoat(datetime.date.today().strftime("%Y%m%d"), where)
             blocks = []
             for loc, what in atinfo.items():
-                t = "*{}:*".format(loc)
-                for i in what:
-                    t += "\n_{}_: {}".format(i["time"], ", ".join(i["who"]))
-                blocks.append(text_block(t))
+                if what:
+                    t = "*{}:*".format(loc)
+                    for i in what:
+                        t += "\n_{}_: {}".format(i["time"], ", ".join(i["who"]))
+                        if "title" in i:
+                            t += " - {}".format(i["title"])
+                    blocks.append(text_block(t))
             post_message(event["channel"], event["user"], blocks)
         else:
             blocks = [
                 text_block(
-                    "Sorry didn't hear you - I was slepping.\nYou can ask for:\n"
-                    "*reports* - Show most recent trail/disturbabce reports\n"
-                    "*photo* - Add photos to an existing report\n"
-                    "*new* - Add a report with photos\n"
-                    "*at* - who's doing what at the reserve today."
+                    "Sorry didn't hear you - I was sleeping.\nYou can ask for:\n"
+                    "*reports* - Show most recent trail/disturbance reports.\n"
+                    "*new* - Create a report with photos.\n"
+                    "*photo* - Add photos to an existing report.\n"
+                    "*at* - who's doing what at the Reserve today.\n"
                 )
             ]
 

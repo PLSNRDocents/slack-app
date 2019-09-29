@@ -1,6 +1,5 @@
 # Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
 
-import datetime
 import logging
 import json
 
@@ -30,53 +29,6 @@ def top():
 
     # remove all extraneous white space and put into list.
     rrequest = " ".join(request.form["text"].split()).split()
-    if rrequest[0].startswith("delete"):
-        # TODO authz
-        # We handle delete report_id
-        # and delete report_id photos
-        if len(rrequest) == 2:
-            # delete entire report
-            just_photos = False
-        elif len(rrequest) == 3 and rrequest[2] == "photos":
-            just_photos = True
-        else:
-            return (
-                jsonify(
-                    {
-                        "response_type": "ephemeral",
-                        "text": "Either /report delete report_id or"
-                        " /report delete report_id photos",
-                    }
-                ),
-                200,
-            )
-
-        rid = rrequest[1]
-        logger.info(
-            "User {} requesting to delete {} {}".format(
-                request.form["user_id"], "photos" if just_photos else "report", rid
-            )
-        )
-        # TODO convert to async
-        try:
-            rid = current_app.report.name_to_id(rid)
-            if just_photos:
-                current_app.report.delete_photos(rid)
-            else:
-                current_app.report.delete(rid)
-        except ValueError:
-            return (
-                jsonify(
-                    {
-                        "response_type": "ephemeral",
-                        "text": "Either: /report delete <report_number> or\n"
-                        " /report delete <report_number> photo",
-                    }
-                ),
-                200,
-            )
-        return "", 200
-
     if rrequest[0].startswith("t"):
         open_trail_report_dialogue(request.form["trigger_id"], "")
         return "", 200
@@ -97,12 +49,27 @@ def top():
 @api.route("/interact", methods=["GET", "POST"])
 def submit():
     """ Called from slack for all interactions (dialogs, button, etc). """
+    if not slack.WebClient.validate_slack_signature(
+        signing_secret=current_app.config["SIGNING_SECRET"],
+        data=request.get_data().decode("utf-8"),
+        timestamp=request.headers["X-Slack-Request-Timestamp"],
+        signature=request.headers["X-Slack-Signature"],
+    ):
+        abort(403)
+
     rjson = json.loads(request.form["payload"])
     if rjson["type"] == "dialog_submission":
         event_loop.call_soon_threadsafe(
             handle_report_submit, current_app._get_current_object(), rjson
         )
         return "", 200
+    elif rjson["type"] == "dialog_cancellation":
+        # Delete placeholder report
+        event_loop.call_soon_threadsafe(
+            handle_report_cancel, current_app._get_current_object(), rjson
+        )
+        return "", 200
+
     elif rjson["type"] == "block_actions":
         # ts = rjson["container"]["message_ts"]
         # trigger_id, response_url
@@ -171,6 +138,8 @@ def handle_file(event, app: Flask):
         )
     )
 
+    """
+    Not sure this is a good idea - we have explicit ways to add photos.
     with app.app_context():
         # Look for existing trail report from user and channel - else - ignore
         matched = []
@@ -200,6 +169,7 @@ def handle_file(event, app: Flask):
                 "Retrieving file and grabbing GPS info.. thanks.",
             )
             report.add_photo(app, finfo, matched[0])
+    """
 
 
 def open_trail_report_dialogue(trigger, state):
@@ -357,7 +327,7 @@ def handle_report_submit(app, rjson):
             send_update(
                 state["ru"],
                 "Report [{}] saved.".format(report.Report.id_to_name(nr)),
-                True,
+                replace_original=True,
             )
         else:
             nr = app.report.create(
@@ -372,3 +342,15 @@ def handle_report_submit(app, rjson):
                 rjson["user"]["id"],
                 "Report [{}] saved.".format(report.Report.id_to_name(nr)),
             )
+
+
+def handle_report_cancel(app, rjson):
+    # Called on dialog cancel.
+    with app.app_context():
+        if rjson["state"]:
+            # created via start_new / @xx new report
+            # state is json containing report id and response url
+            state = json.loads(rjson["state"])
+            logger.info("Cancelled - deleting report {}".format(state["rid"]))
+            app.report.delete(state["rid"])
+            send_update(state["ru"], "", delete_original=True)

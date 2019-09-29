@@ -56,11 +56,12 @@ def get_file_info(fid):
     return rv.json()
 
 
-def send_update(response_url, text, replace_original=False):
+def send_update(response_url, text, replace_original=False, delete_original=False):
     payload = {
         "text": text,
         "response_type": "ephemeral",
         "replace_original": replace_original,
+        "delete_original": delete_original,
     }
     rv = requests.post(response_url, json=payload)
     _chk_error(rv, response_url)
@@ -76,7 +77,7 @@ def post_message(channel, user, payload):
     return jresponse["message_ts"]
 
 
-@cachetools.func.ttl_cache(600, ttl=60*60*24)
+@cachetools.func.ttl_cache(600, ttl=60 * 60 * 24)
 def user_to_name(slack_user_id):
     try:
         j = get("users.info", slack_user_id)

@@ -11,6 +11,7 @@ zappa
 Pillow=6.1.0
 psycopg2==2.8.3
 requests
+requests-mock
 slackclient
 slackeventsapi
 pytest

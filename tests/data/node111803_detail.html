@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html  lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" /><script type="text/javascript">window.NREUM||(NREUM={}),__nr_require=function(e,n,t){function r(t){if(!n[t]){var o=n[t]={exports:{}};e[t][0].call(o.exports,function(n){var o=e[t][1][n];return r(o||n)},o,o.exports)}return n[t].exports}if("function"==typeof __nr_require)return __nr_require;for(var o=0;o<t.length;o++)r(t[o]);return r}({1:[function(e,n,t){function r(){}function o(e,n,t){return function(){return i(e,[c.now()].concat(u(arguments)),n?null:this,t),n?void 0:this}}var i=e("handle"),a=e(3),u=e(4),f=e("ee").get("tracer"),c=e("loader"),s=NREUM;"undefined"==typeof window.newrelic&&(newrelic=s);var p=["setPageViewName","setCustomAttribute","setErrorHandler","finished","addToTrace","inlineHit","addRelease"],d="api-",l=d+"ixn-";a(p,function(e,n){s[n]=o(d+n,!0,"api")}),s.addPageAction=o(d+"addPageAction",!0),s.setCurrentRouteName=o(d+"routeName",!0),n.exports=newrelic,s.interaction=function(){return(new r).get()};var m=r.prototype={createTracer:function(e,n){var t={},r=this,o="function"==typeof n;return i(l+"tracer",[c.now(),e,t],r),function(){if(f.emit((o?"":"no-")+"fn-start",[c.now(),r,o],t),o)try{return n.apply(this,arguments)}catch(e){throw f.emit("fn-err",[arguments,this,e],t),e}finally{f.emit("fn-end",[c.now()],t)}}}};a("actionText,setName,setAttribute,save,ignore,onEnd,getContext,end,get".split(","),function(e,n){m[n]=o(l+n)}),newrelic.noticeError=function(e,n){"string"==typeof e&&(e=new Error(e)),i("err",[e,c.now(),!1,n])}},{}],2:[function(e,n,t){function r(e,n){if(!o)return!1;if(e!==o)return!1;if(!n)return!0;if(!i)return!1;for(var t=i.split("."),r=n.split("."),a=0;a<r.length;a++)if(r[a]!==t[a])return!1;return!0}var o=null,i=null,a=/Version\/(\S+)\s+Safari/;if(navigator.userAgent){var u=navigator.userAgent,f=u.match(a);f&&u.indexOf("Chrome")===-1&&u.indexOf("Chromium")===-1&&(o="Safari",i=f[1])}n.exports={agent:o,version:i,match:r}},{}],3:[function(e,n,t){function r(e,n){var t=[],r="",i=0;for(r in e)o.call(e,r)&&(t[i]=n(r,e[r]),i+=1);return t}var o=Object.prototype.hasOwnProperty;n.exports=r},{}],4:[function(e,n,t){function r(e,n,t){n||(n=0),"undefined"==typeof t&&(t=e?e.length:0);for(var r=-1,o=t-n||0,i=Array(o<0?0:o);++r<o;)i[r]=e[n+r];return i}n.exports=r},{}],5:[function(e,n,t){n.exports={exists:"undefined"!=typeof window.performance&&window.performance.timing&&"undefined"!=typeof window.performance.timing.navigationStart}},{}],ee:[function(e,n,t){function r(){}function o(e){function n(e){return e&&e instanceof r?e:e?f(e,u,i):i()}function t(t,r,o,i){if(!d.aborted||i){e&&e(t,r,o);for(var a=n(o),u=v(t),f=u.length,c=0;c<f;c++)u[c].apply(a,r);var p=s[y[t]];return p&&p.push([b,t,r,a]),a}}function l(e,n){h[e]=v(e).concat(n)}function m(e,n){var t=h[e];if(t)for(var r=0;r<t.length;r++)t[r]===n&&t.splice(r,1)}function v(e){return h[e]||[]}function g(e){return p[e]=p[e]||o(t)}function w(e,n){c(e,function(e,t){n=n||"feature",y[t]=n,n in s||(s[n]=[])})}var h={},y={},b={on:l,addEventListener:l,removeEventListener:m,emit:t,get:g,listeners:v,context:n,buffer:w,abort:a,aborted:!1};return b}function i(){return new r}function a(){(s.api||s.feature)&&(d.aborted=!0,s=d.backlog={})}var u="nr@context",f=e("gos"),c=e(3),s={},p={},d=n.exports=o();d.backlog=s},{}],gos:[function(e,n,t){function r(e,n,t){if(o.call(e,n))return e[n];var r=t();if(Object.defineProperty&&Object.keys)try{return Object.defineProperty(e,n,{value:r,writable:!0,enumerable:!1}),r}catch(i){}return e[n]=r,r}var o=Object.prototype.hasOwnProperty;n.exports=r},{}],handle:[function(e,n,t){function r(e,n,t,r){o.buffer([e],r),o.emit(e,n,t)}var o=e("ee").get("handle");n.exports=r,r.ee=o},{}],id:[function(e,n,t){function r(e){var n=typeof e;return!e||"object"!==n&&"function"!==n?-1:e===window?0:a(e,i,function(){return o++})}var o=1,i="nr@id",a=e("gos");n.exports=r},{}],loader:[function(e,n,t){function r(){if(!E++){var e=x.info=NREUM.info,n=l.getElementsByTagName("script")[0];if(setTimeout(s.abort,3e4),!(e&&e.licenseKey&&e.applicationID&&n))return s.abort();c(y,function(n,t){e[n]||(e[n]=t)}),f("mark",["onload",a()+x.offset],null,"api");var t=l.createElement("script");t.src="https://"+e.agent,n.parentNode.insertBefore(t,n)}}function o(){"complete"===l.readyState&&i()}function i(){f("mark",["domContent",a()+x.offset],null,"api")}function a(){return O.exists&&performance.now?Math.round(performance.now()):(u=Math.max((new Date).getTime(),u))-x.offset}var u=(new Date).getTime(),f=e("handle"),c=e(3),s=e("ee"),p=e(2),d=window,l=d.document,m="addEventListener",v="attachEvent",g=d.XMLHttpRequest,w=g&&g.prototype;NREUM.o={ST:setTimeout,SI:d.setImmediate,CT:clearTimeout,XHR:g,REQ:d.Request,EV:d.Event,PR:d.Promise,MO:d.MutationObserver};var h=""+location,y={beacon:"bam.nr-data.net",errorBeacon:"bam.nr-data.net",agent:"js-agent.newrelic.com/nr-1130.min.js"},b=g&&w&&w[m]&&!/CriOS/.test(navigator.userAgent),x=n.exports={offset:u,now:a,origin:h,features:{},xhrWrappable:b,userAgent:p};e(1),l[m]?(l[m]("DOMContentLoaded",i,!1),d[m]("load",r,!1)):(l[v]("onreadystatechange",o),d[v]("onload",r)),f("mark",["firstbyte",u],null,"api");var E=0,O=e(5)},{}]},{},["loader"]);</script>
+  <meta name="Generator" content="Drupal 8 (https://www.drupal.org)" />
+  <meta name="MobileOptimized" content="width" />
+  <meta name="HandheldFriendly" content="true" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="canonical" href="https://docents.plsnr.org/node/111803" />
+  <link rel="shortlink" href="https://docents.plsnr.org/node/111803" />
+  <link rel="delete-form" href="https://docents.plsnr.org/node/111803/delete" />
+  <link rel="delete-multiple-form" href="https://docents.plsnr.org/admin/content/node/delete?node=111803" />
+  <link rel="edit-form" href="https://docents.plsnr.org/node/111803/edit" />
+  <link rel="version-history" href="https://docents.plsnr.org/node/111803/revisions" />
+  <link rel="revision" href="https://docents.plsnr.org/node/111803" />
+
+  <title>Weston Tide Pool Walk with Peter Fletcher | Point Lobos Docents</title>
+  <link rel="stylesheet" media="all" href="/sites/default/files/css/css_s-2B8Gna6Lsve89VhoCLWd4xrbIZR7xd03ogtASPw7M.css?pxqm5i" />
+  <link rel="stylesheet" media="all" href="/sites/default/files/css/css_bYBdvW4mjGd2bG6K8s_oVlCZ7h8mnJfP3t7RlaX_7Ls.css?pxqm5i" />
+
+  
+<!--[if lte IE 8]>
+<script src="/sites/default/files/js/js_VtafjXmRvoUgAzqzYTA3Wrjkx9wcWhjP0G4ZnnqRamA.js"></script>
+<![endif]-->
+
+</head>
+<body class="user-logged-in path-node page-node-type-activity has-glyphicons">
+  <a href="#main-content" class="visually-hidden focusable skip-link">
+    Skip to main content
+  </a>
+  
+  <div class="dialog-off-canvas-main-canvas" data-off-canvas-main-canvas>
+    <header class="navbar navbar-default container" id="navbar" role="banner">
+      <div class="navbar-header">
+        <div class="region region-navigation">
+          <a class="name navbar-brand" href="/" title="Home" rel="home">Point Lobos Docents</a>
+          
+        </div>
+
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-collapse">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+      </div>
+
+      <div id="navbar-collapse" class="navbar-collapse collapse">
+        <div class="region region-navigation-collapsible">
+          <nav role="navigation" aria-labelledby="block-docents-main-menu-menu" id="block-docents-main-menu">
+            <h2 class="sr-only" id="block-docents-main-menu-menu">Main navigation</h2>
+
+            
+            <ul class="menu nav navbar-nav">
+              <li>
+                <a href="/user" data-drupal-link-system-path="user">My account profile</a>
+              </li>
+              <li>
+                <a href="/home" data-drupal-link-system-path="home">Home/Docent news</a>
+              </li>
+              <li>
+                <a href="/announcements" data-drupal-link-system-path="announcements">Announcements</a>
+              </li>
+              <li>
+                <a href="/schedule/info-station" data-drupal-link-system-path="schedule/info-station">Info Station</a>
+              </li>
+              <li>
+                <a href="/schedule/whalers-cabin" data-drupal-link-system-path="schedule/whalers-cabin">Whalers Cabin</a>
+              </li>
+              <li>
+                <a href="/schedule/public-walks/month" data-drupal-link-system-path="schedule/public-walks/month">Public walks</a>
+              </li>
+              <li>
+                <a href="/schedule/meeting-room/month" data-drupal-link-system-path="schedule/meeting-room/month">Meeting room</a>
+              </li>
+              <li>
+                <a href="/reference/roster" data-drupal-link-system-path="reference/roster">Roster</a>
+              </li>
+              <li>
+                <a href="/reference/substitute" data-drupal-link-system-path="reference/substitute">Find a substitute</a>
+              </li>
+              <li>
+                <a href="/reference/substitution" data-drupal-link-system-path="node/75542">Substitute notification</a>
+              </li>
+              <li>
+                <a href="/reference/contacts" data-drupal-link-system-path="node/472">Contacts/Help</a>
+              </li>
+              <li>
+                <a href="/community/news" data-drupal-link-system-path="community/news">PLF Docent news</a>
+              </li>
+              <li>
+                <a href="/community/photos" data-drupal-link-system-path="community/photos">Share your photos</a>
+              </li>
+              <li>
+                <a href="/community/activities/month" data-drupal-link-system-path="community/activities/month">Docent activity calendar</a>
+              </li>
+              <li>
+                <a href="/schedule/interpretive-duty/month" data-drupal-link-system-path="schedule/interpretive-duty/month">Gate greet/Scope</a>
+              </li>
+              <li>
+                <a href="/resources/interpretive" data-drupal-link-system-path="resources/interpretive">Interpretive resources</a>
+              </li>
+              <li>
+                <a href="/resources/meetings" data-drupal-link-system-path="resources/meetings">Meeting videos</a>
+              </li>
+              <li>
+                <a href="/resources/administration" data-drupal-link-system-path="resources/administration">Administration</a>
+              </li>
+              <li>
+                <a href="/resources/training" data-drupal-link-system-path="resources/training">Training</a>
+              </li>
+              <li>
+                <a href="/user/logout" data-drupal-link-system-path="user/logout">Logout</a>
+              </li>
+            </ul>
+            
+
+
+          </nav>
+          <nav role="navigation" aria-labelledby="block-docents-account-menu-menu" id="block-docents-account-menu">
+            <h2 class="sr-only" id="block-docents-account-menu-menu">User account menu</h2>
+
+            
+            <ul class="menu nav navbar-nav navbar-right">
+              <li>
+                <a href="/user/logout" data-drupal-link-system-path="user/logout">Log out</a>
+              </li>
+            </ul>
+            
+
+
+          </nav>
+
+        </div>
+
+      </div>
+    </header>
+    
+    <div id="lg-nav">
+      <div class="container hidden-sm hidden-xs">
+        <div class="region region-navigation-large">
+          <section id="block-profile" class="col-md-5ths block block-system block-system-menu-blockmenu-user clearfix">
+            
+            <h2 class="block-title"><i class="glyphicon glyphicon-user"></i>Profile</h2>
+            
+
+            
+            <ul class="menu nav nav-pills nav-stacked">
+              <li>
+                <a href="/user" data-drupal-link-system-path="user">My account</a>
+              </li>
+              <li>
+                <a href="/home" title="homepage and recent feed of news posts" data-drupal-link-system-path="home">Upcoming Events</a>
+              </li>
+              <li>
+                <a href="/announcements" title="News and announcements " data-drupal-link-system-path="announcements">Announcements</a>
+              </li>
+              <li>
+                <a href="/user/logout" title="Logout" data-drupal-link-system-path="user/logout">Logout</a>
+              </li>
+            </ul>
+            
+
+
+          </section>
+
+          <section id="block-schedule" class="col-md-5ths block block-system block-system-menu-blockmenu-schedule clearfix">
+            
+            <h2 class="block-title"><i class="glyphicon glyphicon-calendar"></i>Schedule</h2>
+            
+
+            
+            <ul class="menu nav nav-pills nav-stacked">
+              <li>
+                <a href="/schedule/info-station" title="Review the Info Station schedule" data-drupal-link-system-path="schedule/info-station">Info Station</a>
+              </li>
+              <li>
+                <a href="/schedule/whalers-cabin" title="Review the Whalers Cabin schedule" data-drupal-link-system-path="schedule/whalers-cabin">Whalers Cabin</a>
+              </li>
+              <li>
+                <a href="/schedule/public-walks/month" title="Schedule a public walk, or review the schedule" data-drupal-link-system-path="schedule/public-walks/month">Public walks</a>
+              </li>
+              <li>
+                <a href="/schedule/interpretive-duty/month" title=" Gate Greet/Scope/Pupping" data-drupal-link-system-path="schedule/interpretive-duty/month"> Gate Greet/Scope/Pupping</a>
+              </li>
+            </ul>
+            
+
+
+          </section>
+
+          <section id="block-community" class="col-md-5ths block block-system block-system-menu-blockmenu-communitcate clearfix">
+            
+            <h2 class="block-title"><i class="glyphicon glyphicon-comment"></i>Community</h2>
+            
+
+            
+            <ul class="menu nav nav-pills nav-stacked">
+              <li>
+                <a href="/community/news" title="Read blogs and news contributed by Docents" data-drupal-link-system-path="community/news">PL Docent News</a>
+              </li>
+              <li>
+                <a href="/community/photos" title="Upload photos you would like to share here." data-drupal-link-system-path="community/photos">Share your photos</a>
+              </li>
+              <li>
+                <a href="/community/activities/month" title="Docent Activity Calendar" data-drupal-link-system-path="community/activities/month">Docent Activity Calendar</a>
+              </li>
+              <li>
+                <a href="/schedule/meeting-room/month" title="Meeting room" data-drupal-link-system-path="schedule/meeting-room/month">Meeting room</a>
+              </li>
+            </ul>
+            
+
+
+          </section>
+
+          <section id="block-resources" class="col-md-5ths block block-system block-system-menu-blockmenu-resources clearfix">
+            
+            <h2 class="block-title"><i class="glyphicon glyphicon-folder-open"></i>Resources</h2>
+            
+
+            
+            <ul class="menu nav nav-pills nav-stacked">
+              <li>
+                <a href="/resources/interpretive" title="
+                Interpretive Resources
+                " data-drupal-link-system-path="resources/interpretive"> Interpretive Resources</a>
+              </li>
+              <li>
+                <a href="/resources/meetings" title="Meeting Videos" data-drupal-link-system-path="resources/meetings"> Meeting Videos</a>
+              </li>
+              <li>
+                <a href="/resources/administration" title="Administration" data-drupal-link-system-path="resources/administration">Administration</a>
+              </li>
+              <li>
+                <a href="/resources/training" title="Training" data-drupal-link-system-path="resources/training">Training</a>
+              </li>
+            </ul>
+            
+
+
+          </section>
+
+          <section id="block-reference" class="col-md-5ths block block-system block-system-menu-blockmenu-community clearfix">
+            
+            <h2 class="block-title"><i class="glyphicon glyphicon-envelope"></i>Reference</h2>
+            
+
+            
+            <ul class="menu nav nav-pills nav-stacked">
+              <li>
+                <a href="/reference/roster" title="Docent roster" data-drupal-link-system-path="reference/roster">Roster</a>
+              </li>
+              <li>
+                <a href="/reference/substitute" title="Find docents who have specified days, times and location that you need a substitute for" data-drupal-link-system-path="reference/substitute">Find a substitute</a>
+              </li>
+              <li>
+                <a href="/reference/substitution" data-drupal-link-system-path="node/75542">Substitution Notification</a>
+              </li>
+              <li>
+                <a href="/reference/contacts" title="Contacts" data-drupal-link-system-path="node/472">Contacts/Help</a>
+              </li>
+            </ul>
+            
+
+
+          </section>
+
+
+        </div>
+
+      </div>
+    </div>
+    
+
+    <div role="main" class="main-container container js-quickedit-main-content">
+      <div class="row">
+
+        <div class="col-sm-12" role="heading">
+          <div class="region region-header">
+            
+            <div data-drupal-messages-fallback class="hidden"></div>
+            <h1 class="page-header"><span>Weston Tide Pool Walk with Peter Fletcher</span>
+            </h1>
+
+            <nav class="tabs" role="navigation" aria-label="Tabs">
+              <h2 class="visually-hidden">Primary tabs</h2>
+              <ul class="tabs--primary nav nav-tabs"><li class="active"><a href="/node/111803" data-drupal-link-system-path="node/111803">View<span class="visually-hidden">(active tab)</span></a></li>
+                <li><a href="/node/111803/edit" data-drupal-link-system-path="node/111803/edit">Edit</a></li>
+                <li><a href="/node/111803/delete" data-drupal-link-system-path="node/111803/delete">Delete</a></li>
+                <li><a href="/node/111803/event" data-drupal-link-system-path="node/111803/event">Event</a></li>
+              </ul>
+
+            </nav>
+            <ul class="list-inline local-actions"></ul>
+            
+          </div>
+
+        </div>
+        
+        
+        <section class="col-sm-12">
+
+          
+          
+          
+          
+          
+          <a id="main-content"></a>
+          <div class="region region-content">
+            <article data-history-node-id="111803" role="article" class="activity full clearfix">
+
+              
+              
+
+              
+              <div class="content">
+                
+                <div class="field field--name-field-date field--type-daterange field--label-inline">
+                  <div class="field--label">Date</div>
+                  <div class="field--item"><time datetime="2019-09-28T23:00:00Z">Sat, 09/28/2019 - 4:00pm</time>
+                   - <time datetime="2019-09-29T00:30:00Z">Sat, 09/28/2019 - 5:30pm</time>
+                 </div>
+               </div>
+
+               <div class="field field--name-field-activity-type field--type-list-string field--label-inline">
+                <div class="field--label">Type of activity</div>
+                <div class="field--item">All Docents</div>
+              </div>
+
+              <div class="field field--name-body field--type-text-with-summary field--label-above">
+                <div class="field--label">Activity Description</div>
+                <div class="field--item"><p>Join Peter Fletcher to help our visitors discover and understand some amazing sea creatures and plants. Be prepared for low water, great tide pools, and lots of fun exploring the pools.    Water-proof boots are useful but not required, you can try to keep your feet dry or have even more fun by wearing closed-toed shoes that you are willing to get wet!   Low tide is at 4:49 pm. </p>
+                </div>
+              </div>
+              <div class="flag flag-signup js-flag-signup-111803 action-flag"><a class="btn btn-success btn-lg"  title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow">Signup</a><span title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow"> 7 of 8 are signed up </span></div>
+              <div class="field field--name-field-presented-by field--type-entity-reference field--label-above">
+                <div class="field--label">Presented By</div>
+                <div class="field--item"><a href="/users/peter-fletcher" hreflang="en">Peter Fletcher</a></div>
+              </div>
+
+            </div>
+
+          </article>
+
+          <section class="views-element-container block block-views block-views-blockflag-signup-block-1 clearfix" id="block-views-block-flag-signup-block-1">
+            
+            
+
+            <div class="form-group"><div class="view view-flag-signup view-id-flag_signup view-display-id-block_1 js-view-dom-id-19e523b9801984682eb51e72dfd5e31e5fffed9d2888c3eadcb2329a7ceb4100">
+              
+              
+              
+              <div class="view-content">
+                <div class="table-responsive">
+                  <table class="table table-bordered table-hover table-striped">
+                    <thead>
+                      <tr>
+                        <th id="view-uid-table-column" class="views-field views-field-uid" scope="col">Signups</th>
+                        <th class="views-field views-field-link-flag" scope="col"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td headers="view-uid-table-column" class="views-field views-field-uid"><a href="/users/peter-fletcher" hreflang="en">Peter Fletcher</a>        </td>
+                        <td class="views-field views-field-link-flag"><div class="flag flag-signup js-flag-signup-111803 action-flag"><a class="btn btn-success btn-lg"  title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow">Signup</a><span title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow"> 7 of 8 are signed up </span></div>        </td>
+                      </tr>
+                      <tr>
+                        <td headers="view-uid-table-column" class="views-field views-field-uid"><a href="/users/wendy-swanson" hreflang="en">Wendy Swanson</a>        </td>
+                        <td class="views-field views-field-link-flag"><div class="flag flag-signup js-flag-signup-111803 action-flag"><a class="btn btn-success btn-lg"  title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow">Signup</a><span title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow"> 7 of 8 are signed up </span></div>        </td>
+                      </tr>
+                      <tr>
+                        <td headers="view-uid-table-column" class="views-field views-field-uid"><a href="/users/grant-swanson" hreflang="en">Grant Swanson</a>        </td>
+                        <td class="views-field views-field-link-flag"><div class="flag flag-signup js-flag-signup-111803 action-flag"><a class="btn btn-success btn-lg"  title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow">Signup</a><span title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow"> 7 of 8 are signed up </span></div>        </td>
+                      </tr>
+                      <tr>
+                        <td headers="view-uid-table-column" class="views-field views-field-uid"><a href="/users/margaret-johnson" hreflang="en">Margaret Johnson</a>        </td>
+                        <td class="views-field views-field-link-flag"><div class="flag flag-signup js-flag-signup-111803 action-flag"><a class="btn btn-success btn-lg"  title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow">Signup</a><span title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow"> 7 of 8 are signed up </span></div>        </td>
+                      </tr>
+                      <tr>
+                        <td headers="view-uid-table-column" class="views-field views-field-uid"><a href="/users/karen-wagner" hreflang="en">Karen Wagner</a>        </td>
+                        <td class="views-field views-field-link-flag"><div class="flag flag-signup js-flag-signup-111803 action-flag"><a class="btn btn-success btn-lg"  title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow">Signup</a><span title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow"> 7 of 8 are signed up </span></div>        </td>
+                      </tr>
+                      <tr>
+                        <td headers="view-uid-table-column" class="views-field views-field-uid"><a href="/users/donita-grace" hreflang="en">Donita Grace</a>        </td>
+                        <td class="views-field views-field-link-flag"><div class="flag flag-signup js-flag-signup-111803 action-flag"><a class="btn btn-success btn-lg"  title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow">Signup</a><span title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow"> 7 of 8 are signed up </span></div>        </td>
+                      </tr>
+                      <tr>
+                        <td headers="view-uid-table-column" class="views-field views-field-uid"><a href="/users/robert-grace" hreflang="en">Robert Grace</a>        </td>
+                        <td class="views-field views-field-link-flag"><div class="flag flag-signup js-flag-signup-111803 action-flag"><a class="btn btn-success btn-lg"  title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow">Signup</a><span title="Signup for this activity" href="/flag/details/flag/signup/111803?destination=/node/111803" rel="nofollow"> 7 of 8 are signed up </span></div>        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+              </div>
+              
+            </div>
+          </div>
+
+        </section>
+
+
+      </div>
+
+    </section>
+
+  </div>
+</div>
+
+<footer class="footer container" role="contentinfo">
+  
+</footer>
+
+</div>
+
+
+<script type="application/json" data-drupal-selector="drupal-settings-json">{"path":{"baseUrl":"\/","scriptPath":null,"pathPrefix":"","currentPath":"node\/111803","currentPathIsAdmin":false,"isFront":false,"currentLanguage":"en"},"pluralDelimiter":"\u0003","ajaxPageState":{"libraries":"bootstrap\/popover,bootstrap\/tooltip,calendar\/calendar.theme,colorbox\/plain,colorbox_inline\/colorbox_inline,core\/drupal.active-link,core\/html5shiv,docents\/bootstrap-scripts,docents\/docents-scripts,docents\/global-styling,flag\/flag.link,history\/mark-as-read,system\/base,views\/views.module,webform_bootstrap\/webform_bootstrap","theme":"docents","theme_token":null},"ajaxTrustedUrl":[],"colorbox":{"opacity":"0.85","current":"{current} of {total}","previous":"\u00ab Prev","next":"Next \u00bb","close":"Close","maxWidth":"98%","maxHeight":"98%","fixed":true,"mobiledetect":true,"mobiledevicewidth":"480px"},"bootstrap":{"forms_has_error_value_toggle":1,"modal_animation":1,"modal_backdrop":"true","modal_keyboard":1,"modal_show":1,"modal_size":"","popover_enabled":1,"popover_animation":1,"popover_container":"body","popover_content":"","popover_delay":"0","popover_html":0,"popover_placement":"right","popover_selector":"","popover_title":"","popover_trigger":"click","popover_trigger_autoclose":1,"tooltip_enabled":1,"tooltip_animation":1,"tooltip_container":"body","tooltip_delay":"0","tooltip_html":0,"tooltip_placement":"auto left","tooltip_selector":"","tooltip_trigger":"hover"},"history":{"nodesToMarkAsRead":{"111803":true}},"user":{"uid":"358","permissionsHash":"a144bf32afc290018a7325147003dba4521783ec485ac4d70b6756f9554c57b5"}}</script>
+<script src="/sites/default/files/js/js_BKcMdIbOMdbTdLn9dkUq3KCJfIKKo2SvKoQ1AnB8D-g.js"></script>
+
+<!--[if lte IE 9]>
+<script src="/sites/default/files/js/js_VhqXmo4azheUjYC30rijnR_Dddo0WjWkF27k5gTL8S4.js"></script>
+<![endif]-->
+<script src="/sites/default/files/js/js_fStnOOUduhNlmucupXnrY4EZPIja7R_Z-iQKoilliT0.js"></script>
+
+<script type="text/javascript">window.NREUM||(NREUM={});NREUM.info={"beacon":"bam.nr-data.net","licenseKey":"eb5300b886","applicationID":"82115055","transactionName":"ZAFSMkJTCEVVVUdRVl1LcQVEWwlYG3JBTUlSCGwAXFMBanJaUl91WgpbJEVbClJRRB4GW0YNXAI=","queueTime":0,"applicationTime":913,"atts":"SEZRRApJG0s=","errorBeacon":"bam.nr-data.net","agent":""}</script></body>
+</html>
