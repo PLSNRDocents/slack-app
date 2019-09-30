@@ -29,10 +29,11 @@ def talk_to_me(event, app: Flask):
     TODO: NLP
 
     Commands:
-    "report(s)"
+    "rep(orts)"
     "photo <report id>"
     "new r(eport)"
-    "at info"
+    "del(ete) <report_id>
+    "at <where>"
 
     """
 
@@ -60,17 +61,8 @@ def talk_to_me(event, app: Flask):
                         ),
                         r.create_datetime,
                     )
-                    text = "[{}] {} _{}_ reported {}:\n*{}* on _{}_ {}".format(
-                        app.report.id_to_name(r),
-                        dt,
-                        r.reporter if r.reporter else r.reporter_slack_handle,
-                        "trail issue" if r.type == TYPE_TRAIL else "disturbance",
-                        xlate_issues(r.issues),
-                        TRAIL_VALUE_2_DESC[r.location],
-                        gps,
-                    )
+                    url = None
                     if len(r.photos) > 0:
-                        # blocks.append(text_block(text))
                         url = "https://slack-files.com/TODJUU16J-FN7GS9OD8-c5fe8ef934"
                         url = (
                             "https://files.slack.com/files-pri/"
@@ -79,6 +71,20 @@ def talk_to_me(event, app: Flask):
                         url = "https://s3.us-east-1.amazonaws.com/{}/{}".format(
                             app.config["S3_BUCKET"], r.photos[0].s3_url
                         )
+                    text = (
+                        "[{}] {} _{}_ reported {}:\n*{}* on _{}_ {}"
+                        " {photo_link}".format(
+                            app.report.id_to_name(r),
+                            dt,
+                            r.reporter if r.reporter else r.reporter_slack_handle,
+                            "trail issue" if r.type == TYPE_TRAIL else "disturbance",
+                            xlate_issues(r.issues),
+                            TRAIL_VALUE_2_DESC[r.location],
+                            gps,
+                            photo_link="(<{}|Big Picture>)".format(url) if url else "",
+                        )
+                    )
+                    if url:
                         blocks.append(text_image(text, url))
                         logger.debug(
                             "Image block {}".format(json.dumps(text_image(text, url)))
@@ -132,8 +138,8 @@ def talk_to_me(event, app: Flask):
                 post_message(
                     event["channel"],
                     event["user"],
-                    "Use: *@{}* new r(eport) to start a"
-                    " new report (with photos).".format(app.config["BOT_NAME"]),
+                    "Use: *@{}* new r(eport) to start a new report "
+                    "(with attached photos).".format(app.config["BOT_NAME"]),
                 )
                 return
             # create new report to store photos
