@@ -13,13 +13,11 @@ from report import Report
 import s3
 
 REQUIRED_CONFIG = ["SIGNING_SECRET", "BOT_TOKEN"]
-LOG_FORMAT = (
-    "%(asctime)s.%(msecs)03d %(levelname)s Sywphoto:%(process)d %(name)s: %(message)s"
-)
+LOG_FORMAT = "%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s"
 DATE_FMT = "%m/%d/%Y %H:%M:%S"
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("report")
+logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FMT, level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def get_action_values(info):
@@ -29,25 +27,32 @@ def get_action_values(info):
 def create_app():
     app = Flask(__name__)
 
-    logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FMT)
     logging.getLogger("botocore").setLevel(logging.INFO)
     logging.getLogger("boto3").setLevel(logging.INFO)
     logging.getLogger("urllib3").setLevel(logging.INFO)
     logging.getLogger("s3transfer").setLevel(logging.INFO)
 
     mode = os.environ["PLSNRENV"]
+    logger.info("create_app: mode {}".format(mode))
     app.config.from_object("settings." + mode + "Settings")
 
     for rc in REQUIRED_CONFIG:
         if rc not in os.environ:
             raise EnvironmentError("Missing {}".format(rc))
         app.config[rc] = os.environ.get(rc)
+    # let environ overwrite settings
+    for rc in app.config:
+        if rc in os.environ and (os.environ[rc] != app.config[rc]):
+            logger.warning("Config variable {} overwritten by environment".format(rc))
+            app.config[rc] = os.environ[rc]
 
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
+    logger.info("create_app: init db")
     db.init_app(app)
     app.register_blueprint(api)
 
     app.report = Report(db, app)
+    logger.info("create_app: initializing S3")
     app.s3 = s3.S3Storage(app.config)
     app.s3.init()
 
@@ -60,5 +65,7 @@ def create_app():
 
 if __name__ == "__main__":
     # reloader doesn't work with additional threads.
-    create_app().run(host="localhost", port=5002, debug=True, use_reloader=False)
+    app = create_app()
+    asyncev.wapp = app
+    app.run(host="localhost", port=5002, debug=True, use_reloader=False)
     asyncev.event_loop.call_soon_threadsafe(asyncev.event_loop.stop)

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 def _chk_error(rv, endpoint):
     try:
         jresponse = rv.json()
-    except ValueError:
+    except Exception:
         jresponse = None
     logger.info(
         "Slack POST to {} status {}: {}".format(endpoint, rv.status_code, jresponse)
@@ -32,7 +32,11 @@ def post(endpoint, payload):
         "Content-Type": "application/json;charset=utf-8",
         "Accept": "application/json",
     }
-    rv = requests.post(SLACK_URL + "/" + endpoint, headers=headers, json=payload)
+    try:
+        rv = requests.post(SLACK_URL + "/" + endpoint, headers=headers, json=payload)
+    except Exception as exc:
+        logger.error("POST failed", exc)
+        return None
     return _chk_error(rv, endpoint)
 
 

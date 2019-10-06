@@ -11,6 +11,12 @@ Edit migration version file then:
 
 ...  flask db upgrade
 
+For AWS setup ssh tunnel first:
+ssh -i ~/.ssh/plsnr_aws_iam_user.pem ec2-user@54.81.108.17
+ -L 12000:plsnr-slack-dev.cluster-cex79jl1h28t.us-east-1.rds.amazonaws.com:5432 -N
+
+Then PLSNRENV=AWSRDS FLASK_APP=manage
+
 """
 import os
 

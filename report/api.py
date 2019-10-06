@@ -3,10 +3,11 @@
 import logging
 import json
 
-from flask import Blueprint, Flask, abort, current_app, jsonify, request
+from flask import Blueprint, abort, current_app, jsonify, request
 import slack
 
-from asyncev import event_loop
+import asyncev
+from asyncev import run_async
 from dbmodel import TRAIL_VALUE_2_DESC, TYPE_TRAIL, TYPE_DISTURBANCE, ISSUES_2_DESC
 from otterbot import talk_to_me
 import report
@@ -59,15 +60,11 @@ def submit():
 
     rjson = json.loads(request.form["payload"])
     if rjson["type"] == "dialog_submission":
-        event_loop.call_soon_threadsafe(
-            handle_report_submit, current_app._get_current_object(), rjson
-        )
+        run_async(current_app.config["EV_MODE"], handle_report_submit, rjson)
         return "", 200
     elif rjson["type"] == "dialog_cancellation":
         # Delete placeholder report
-        event_loop.call_soon_threadsafe(
-            handle_report_cancel, current_app._get_current_object(), rjson
-        )
+        run_async(current_app.config["EV_MODE"], handle_report_cancel, rjson)
         return "", 200
 
     elif rjson["type"] == "block_actions":
@@ -106,10 +103,12 @@ def events():
         if event["type"] == "app_mention":
             # let's chat
             logger.info(
-                "App_mention from {} channel {}".format(event["user"], event["channel"])
+                "App_mention from {} channel {} id {}".format(
+                    event["user"], event["channel"], payload["event_id"]
+                )
             )
-            event_loop.call_soon_threadsafe(
-                talk_to_me, event, current_app._get_current_object()
+            run_async(
+                current_app.config["EV_MODE"], talk_to_me, payload["event_id"], event
             )
         elif event["type"] == "file_created" or event["type"] == "file_shared":
             logger.info(
@@ -117,11 +116,9 @@ def events():
                     event["type"], event["user_id"], event["channel_id"]
                 )
             )
-            event_loop.call_soon_threadsafe(
-                handle_file, event, current_app._get_current_object()
-            )
+            run_async(current_app.config["EV_MODE"], handle_file, event)
         else:
-            logger.info("Unhandled Sub-Event type {}".format(event["type"]))
+            logger.info("Unhandled Sub-Event type: {}".format(event["type"]))
 
         # Always respond
         return "", 200
@@ -129,7 +126,7 @@ def events():
     return "", 200
 
 
-def handle_file(event, app: Flask):
+def handle_file(event):
     # This runs async w/o an app context.
     finfo = get_file_info(event["file_id"])["file"]
     logger.info(
@@ -140,6 +137,7 @@ def handle_file(event, app: Flask):
 
     """
     Not sure this is a good idea - we have explicit ways to add photos.
+    app = asyncev.wapp
     with app.app_context():
         # Look for existing trail report from user and channel - else - ignore
         matched = []
@@ -170,6 +168,7 @@ def handle_file(event, app: Flask):
             )
             report.add_photo(app, finfo, matched[0])
     """
+    return {}
 
 
 def open_trail_report_dialogue(trigger, state):
@@ -178,9 +177,8 @@ def open_trail_report_dialogue(trigger, state):
         trail_options.append(dict(label=d, value=n))
     valid_trail_issues = ["po", "sign", "ca", "tree", "step", "ot"]
     trail_issues = []
-    for n, d in ISSUES_2_DESC.items():
-        if n in valid_trail_issues:
-            trail_issues.append(dict(label=d, value=n))
+    for n in valid_trail_issues:
+        trail_issues.append(dict(label=ISSUES_2_DESC[n], value=n))
     payload = {
         "callback_id": TYPE_TRAIL,
         "title": "Trail Report",
@@ -188,6 +186,12 @@ def open_trail_report_dialogue(trigger, state):
         "notify_on_cancel": True,
         "state": state,
         "elements": [
+            {
+                "label": "Issue",
+                "type": "select",
+                "name": "issues",
+                "options": trail_issues,
+            },
             {
                 "label": "Which Trail",
                 "type": "select",
@@ -200,12 +204,6 @@ def open_trail_report_dialogue(trigger, state):
                 "name": "cross",
                 "optional": True,
                 "options": trail_options,
-            },
-            {
-                "label": "Issue",
-                "type": "select",
-                "name": "issues",
-                "options": trail_issues,
             },
             {
                 "label": "GPS Location",
@@ -232,27 +230,26 @@ def open_disturbance_report_dialogue(trigger, state):
     for n, d in TRAIL_VALUE_2_DESC.items():
         trail_options.append(dict(label=d, value=n))
     valid_dist_issues = [
-        "ot",
+        "off",
+        "eat",
+        "pet",
+        "take",
+        "tide",
+        "climb",
+        "evil",
         "pin",
         "ott",
         "bird",
-        "off",
         "jump",
-        "climb",
-        "eat",
-        "pet",
         "bike",
-        "tide",
-        "take",
-        "evil",
         "drone",
         "air",
         "fish",
+        "ot",
     ]
     disturbance_issues = []
-    for n, d in ISSUES_2_DESC.items():
-        if n in valid_dist_issues:
-            disturbance_issues.append(dict(label=d, value=n))
+    for n in valid_dist_issues:
+        disturbance_issues.append(dict(label=ISSUES_2_DESC[n], value=n))
     payload = {
         "callback_id": TYPE_DISTURBANCE,
         "title": "Disturbance Report",
@@ -260,6 +257,12 @@ def open_disturbance_report_dialogue(trigger, state):
         "notify_on_cancel": True,
         "state": state,
         "elements": [
+            {
+                "label": "Disturbance",
+                "type": "select",
+                "name": "issues",
+                "options": disturbance_issues,
+            },
             {
                 "label": "Which Trail",
                 "type": "select",
@@ -272,12 +275,6 @@ def open_disturbance_report_dialogue(trigger, state):
                 "name": "cross",
                 "optional": True,
                 "options": trail_options,
-            },
-            {
-                "label": "Disturbance",
-                "type": "select",
-                "name": "issues",
-                "options": disturbance_issues,
             },
             {
                 "label": "GPS Location",
@@ -299,8 +296,9 @@ def open_disturbance_report_dialogue(trigger, state):
     post("dialog.open", dict(trigger_id=trigger, dialog=payload))
 
 
-def handle_report_submit(app, rjson):
+def handle_report_submit(rjson):
     # Called on dialog submission.
+    app = asyncev.wapp
     with app.app_context():
         if rjson["state"]:
             # created via start_new / @xx new report
@@ -342,10 +340,12 @@ def handle_report_submit(app, rjson):
                 rjson["user"]["id"],
                 "Report [{}] saved.".format(report.Report.id_to_name(nr)),
             )
+    return {}
 
 
-def handle_report_cancel(app, rjson):
+def handle_report_cancel(rjson):
     # Called on dialog cancel.
+    app = asyncev.wapp
     with app.app_context():
         if rjson["state"]:
             # created via start_new / @xx new report
@@ -354,3 +354,4 @@ def handle_report_cancel(app, rjson):
             logger.info("Cancelled - deleting report {}".format(state["rid"]))
             app.report.delete(state["rid"])
             send_update(state["ru"], "", delete_original=True)
+    return {}

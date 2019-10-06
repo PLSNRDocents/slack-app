@@ -1,0 +1,22 @@
+{
+    "dev": {
+        "app_function": "wsgi.app",
+        "profile_name": "plsnr",
+        "project_name": "plsnr-slack-app",
+        "runtime": "python3.7",
+        "s3_bucket": "zappa-plsnr-dev",
+        "keep_warm": false,
+        "delete_local_zip": true,
+        "num_retained_versions": 20,
+        "exclude": ["*.gz", "*.zip", ".pytest_cache/*"],
+        "environment_variables": {
+            "PLSNRENV": "AWSDev"
+        },
+        "vpc_config": {
+            "SecurityGroupIds": ["sg-0b1207452572162b3"]
+        },
+        "timeout_seconds": 60,
+        "async_source": "lambda",
+        "async_resources": false
+    }
+}

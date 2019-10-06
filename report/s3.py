@@ -21,7 +21,10 @@ class S3Storage(object):
     def __init__(self, config):
         self._config = config
         self._logger = logging.getLogger(__name__)
-        self._session = boto3.Session(profile_name="plsnr")
+        if config.get("AWS_PROFILE", None):
+            self._session = boto3.Session(profile_name=config["AWS_PROFILE"])
+        else:
+            self._session = boto3.Session()
         # Default retries is 4 - and default timout is 60 seconds -
         # that seems way to long.
         self._botoconfig = botocore.config.Config(connect_timeout=10)
