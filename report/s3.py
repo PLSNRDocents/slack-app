@@ -30,28 +30,29 @@ class S3Storage(object):
         self._botoconfig = botocore.config.Config(connect_timeout=10)
 
     def init(self):
-        """ Make sure bucket exists """
-        s3 = self._session.resource("s3", config=self._botoconfig)
-        try:
-            self._logger.info(
-                "Creating/verifying S3 bucket {}".format(self._config["S3_BUCKET"])
-            )
-            s3.create_bucket(Bucket=self._config["S3_BUCKET"])
-        except Exception as ex:
-            if isinstance(ex, ClientError):
-                # ignore if already present
-                if ex.response["ResponseMetadata"]["HTTPStatusCode"] == 409:
-                    return
-            self._logger.info(
-                "Failed to init/verify bucket: %s failed: %s",
-                self._config["S3_BUCKET"],
-                ex,
-            )
-            raise exc.S3Error(
-                "Failed to init/verify bucket {}: {}".format(
-                    self._config["S3_BUCKET"], ex
+        if self._config["S3_VERIFY_BUCKET"]:
+            # Make sure bucket exists
+            s3 = self._session.resource("s3", config=self._botoconfig)
+            try:
+                self._logger.info(
+                    "Creating/verifying S3 bucket {}".format(self._config["S3_BUCKET"])
                 )
-            )
+                s3.create_bucket(Bucket=self._config["S3_BUCKET"])
+            except Exception as ex:
+                if isinstance(ex, ClientError):
+                    # ignore if already present
+                    if ex.response["ResponseMetadata"]["HTTPStatusCode"] == 409:
+                        return
+                self._logger.info(
+                    "Failed to init/verify bucket: %s failed: %s",
+                    self._config["S3_BUCKET"],
+                    ex,
+                )
+                raise exc.S3Error(
+                    "Failed to init/verify bucket {}: {}".format(
+                        self._config["S3_BUCKET"], ex
+                    )
+                )
 
     def delete(self, path, rname):
         self._logger.info("Trying to delete: %s for report: %s", path, rname)

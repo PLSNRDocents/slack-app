@@ -11,7 +11,7 @@ from random import randint
 import traceback
 
 import asyncev
-from dbmodel import TRAIL_VALUE_2_DESC, TYPE_DISTURBANCE, TYPE_TRAIL, xlate_issues
+from constants import TRAIL_VALUE_2_DESC, TYPE_DISTURBANCE, TYPE_TRAIL, xlate_issues
 
 import plweb
 from quotes import QUOTES

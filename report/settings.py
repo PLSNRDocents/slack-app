@@ -6,6 +6,9 @@ class Settings:
     SQLALCHEMY_RECORD_QUERIES = True
     # SQLALCHEMY_ECHO = True
 
+    # We get 2000 puts/lists etc - so don't check every time we start
+    S3_VERIFY_BUCKET = False
+
 
 class DevSettings(Settings):
     EV_MODE = "ev"

@@ -8,7 +8,7 @@ import slack
 
 import asyncev
 from asyncev import run_async
-from dbmodel import TRAIL_VALUE_2_DESC, TYPE_TRAIL, TYPE_DISTURBANCE, ISSUES_2_DESC
+from constants import TRAIL_VALUE_2_DESC, TYPE_TRAIL, TYPE_DISTURBANCE, ISSUES_2_DESC
 from otterbot import talk_to_me
 import report
 from slack_api import get_file_info, post, post_message, send_update

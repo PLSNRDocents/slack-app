@@ -10,15 +10,14 @@ from flask import Flask
 import sqlalchemy
 from sqlalchemy.orm import joinedload
 
-from dbmodel import (
+from constants import (
     TYPE_DISTURBANCE,
     TYPE_TRAIL,
-    PhotoModel,
-    ReportModel,
     STATUS_CONFIRMED,
     STATUS_PLACEHOLDER,
     STATUS_REPORTED,
 )
+from dbmodel import PhotoModel, ReportModel
 import image
 import slack_api
 
