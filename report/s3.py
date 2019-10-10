@@ -54,8 +54,8 @@ class S3Storage(object):
                     )
                 )
 
-    def delete(self, path, rname):
-        self._logger.info("Trying to delete: %s for report: %s", path, rname)
+    def delete(self, path, rid):
+        self._logger.info("Trying to delete: %s for report: %s", path, rid)
 
         try:
             s3 = self._session.resource("s3", config=self._botoconfig)
@@ -65,11 +65,11 @@ class S3Storage(object):
                 "Could not delete: %s from bucket: %s for report: %s reason: %s",
                 path,
                 self._config["S3_BUCKET"],
-                rname,
+                rid,
                 ex,
             )
 
-    def save(self, local_name, ext, content_type, rname, rid):
+    def save(self, local_name, ext, content_type, rid):
         base_name = "{}_{}.{}".format(rid, uuid.uuid4(), ext)
 
         try:
@@ -81,7 +81,7 @@ class S3Storage(object):
                 )
         except Exception as ex:
             self._logger.error(
-                "Failed to save %s for report: %s error: %s", base_name, rname, ex
+                "Failed to save %s for report: %s error: %s", base_name, rid, ex
             )
             raise exc.S3Error("Failed to save image {}: {}".format(base_name, ex))
 

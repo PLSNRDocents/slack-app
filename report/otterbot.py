@@ -15,8 +15,7 @@ from constants import TRAIL_VALUE_2_DESC, TYPE_DISTURBANCE, TYPE_TRAIL, xlate_is
 
 import plweb
 from quotes import QUOTES
-import report
-from slack_api import post_message
+from slack_api import post_message, user_to_name
 
 
 logger = logging.getLogger(__name__)
@@ -56,10 +55,15 @@ def talk_to_me(event_id, event):
                         "It appears you are trying to create a report -"
                         " use *@{}* new".format(app.config["BOT_NAME"]),
                     )
+                # Options:
+                # Whether to return reports with any status
+                active_only = True
+                if len(whatsup) > 2 and whatsup[2].startswith("any"):
+                    active_only = False
                 blocks = []
-                blocks.append(text_block("*Current Trail Reports:*"))
+                blocks.append(text_block("*Current Reports:*"))
 
-                reports = app.report.fetch_all()
+                reports = app.report.fetch_all(active=active_only)
                 if reports:
                     for r in reports:
                         blocks.append(divider_block())
@@ -129,12 +133,12 @@ def talk_to_me(event_id, event):
                         post_message(
                             event["channel"],
                             event["user"],
-                            "No photos attached?".format(rname),
+                            "No photos attached? for report {}".format(rname),
                         )
                         return
                     for finfo in event["files"]:
                         logger.info("Adding file {}".format(json.dumps(finfo)))
-                        report.add_photo(app, finfo, rm)
+                        app.report.add_photo(app.s3, finfo, rm)
                     post_message(
                         event["channel"],
                         event["user"],
@@ -167,7 +171,11 @@ def talk_to_me(event_id, event):
                     return
                 # create new report to store photos
                 nr = app.report.start_new()
-                logger.info("Starting new report {}".format(nr.id))
+                logger.info(
+                    "User {}({}) starting new report {}".format(
+                        event["user"], user_to_name(event["user"]), nr.id
+                    )
+                )
 
                 # start an interactive message.
                 # Seems safe enough to do this now - it takes a while to save files
@@ -186,7 +194,7 @@ def talk_to_me(event_id, event):
                         logger.info(
                             "Adding file {} to {}".format(json.dumps(finfo), nr.id)
                         )
-                        report.add_photo(app, finfo, nr)
+                        app.report.add_photo(app.s3, finfo, nr)
 
             elif whatsup[1].startswith("del"):
                 # TODO authz
@@ -210,16 +218,19 @@ def talk_to_me(event_id, event):
 
                 rname = whatsup[2]
                 logger.info(
-                    "User {} requesting to delete {} {}".format(
-                        event["user"], "photos" if just_photos else "report", rname
+                    "User {}({}) requesting to delete {} {}".format(
+                        event["user"],
+                        user_to_name(event["user"]),
+                        "photos" if just_photos else "report",
+                        rname,
                     )
                 )
                 try:
                     rid = app.report.name_to_id(rname)
                     if just_photos:
-                        app.report.delete_photos(rid)
+                        app.report.delete_photos(rid, app.s3)
                     else:
-                        app.report.delete(rid)
+                        app.report.delete(rid, app.s3)
                     post_message(
                         event["channel"],
                         event["user"],
@@ -232,7 +243,7 @@ def talk_to_me(event_id, event):
                         event["channel"],
                         event["user"],
                         "Use: *@{}* delete _report_id_ OR"
-                        " {} delete _report_id_ photos".format(
+                        " *@{}* delete _report_id_ photos".format(
                             app.config["BOT_NAME"], app.config["BOT_NAME"]
                         ),
                     )

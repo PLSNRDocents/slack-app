@@ -10,6 +10,8 @@ from api import api
 import asyncev
 from dbmodel import db
 from report import Report
+
+from dynamo import Report as DynamoReport
 import s3
 
 REQUIRED_CONFIG = ["SIGNING_SECRET", "BOT_TOKEN"]
@@ -48,10 +50,13 @@ def create_app():
 
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
     logger.info("create_app: init db")
-    db.init_app(app)
+    if app.config["USE_DYNAMO"]:
+        app.report = DynamoReport(app.config)
+    else:
+        db.init_app(app)
+        app.report = Report(db, app)
     app.register_blueprint(api)
 
-    app.report = Report(db, app)
     logger.info("create_app: initializing S3")
     app.s3 = s3.S3Storage(app.config)
     app.s3.init()
@@ -59,6 +64,12 @@ def create_app():
     @app.before_first_request
     def start_async():
         threading.Thread(target=lambda: asyncev.run_loop(asyncev.event_loop)).start()
+
+    @app.before_first_request
+    def init_tables():
+        if app.config["USE_DYNAMO"]:
+            # app.report.destroy_all()
+            app.report.create_all()
 
     return app
 

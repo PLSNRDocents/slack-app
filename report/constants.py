@@ -22,6 +22,7 @@ TRAIL_VALUE_2_DESC = {
     "sp": "South Plateau",
     "pw": "Piney Woods",
     "mm": "Mound Meadow",
+    "Unk": "Unknown",
 }
 
 # This is a comprehensive list for ALL report types
@@ -47,6 +48,7 @@ ISSUES_2_DESC = {
     "drone": "Drones, any use regardless of disturbance",
     "air": "Airplane flying low",
     "fish": "Fishing boat with deployed lines, nets or poles within the Reserve",
+    "Unk": "Unknown",
 }
 
 

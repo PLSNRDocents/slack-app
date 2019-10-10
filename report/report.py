@@ -66,8 +66,8 @@ class Report:
         were uploaded at the beginning.
         """
         nr = ReportModel(type="Unknown", status=STATUS_PLACEHOLDER)
-        nr.location = "Unknown"
-        nr.issues = "Unknown"
+        nr.location = "Unk"
+        nr.issues = "Unk"
         self._db.session.add(nr)
         self._db.session.commit()
         return self.get(nr.id)
@@ -93,23 +93,37 @@ class Report:
         r = ReportModel.query.options(joinedload("photos")).get(rid)
         return r
 
-    def delete(self, rid):
+    def add_photo(self, s3, finfo, rm: ReportModel):
+        """ Add photo.
+        We do this one photo at a time - we don't expect more than one or 2.
+        We just update the entire record because - that's easier.
+        """
+        s3_finfo, lat, lon = image.add_photo(s3, finfo, rm.id)
+        photo = PhotoModel(rm, slack_file_id=finfo["id"])
+        photo.s3_url = s3_finfo["path"]
+
+        with self.acquire_for_update(rm, photo):
+            # report is locked, and photo has been added to session.
+            if not rm.gps and lat and lon:
+                rm.gps = "{},{}".format(lat, lon)
+
+    def delete(self, rid, s3):
         r = self.get(rid)
         if not r:
             raise ValueError()
         for p in r.photos:
             # remove from S3. PhotoModels will be automatically deleted.
-            self._app.s3.delete(p.s3_url, Report.id_to_name(r))
+            self._app.s3.delete(p.s3_url, rid)
         self._db.session.delete(r)
         self._db.session.commit()
 
-    def delete_photos(self, rid):
+    def delete_photos(self, rid, s3):
         # delete all photos but leave report alone
         r = self.get(rid)
         if not r:
             raise ValueError()
         for p in r.photos:
-            self._app.s3.delete(p.s3_url, Report.id_to_name(r))
+            self._app.s3.delete(p.s3_url, rid)
             self._db.session.delete(p)
         self._db.session.commit()
 
@@ -149,36 +163,6 @@ class Report:
         if rname.startswith("TR-") or rname.startswith("DR-"):
             rname = rname[3:]
         return rname
-
-
-def add_photo(app, finfo, rm: ReportModel):
-    # Assume called in app context.
-    lat = None
-    lon = None
-    im = image.fetch_image(finfo["url_private"])
-    if not rm.gps:
-        # fetch image, find GPS coordinates - note that IOS actually strips this
-        # so likely we won't find any.
-        exif_data = image.get_exif_data(im)
-        lat, lon = image.get_lat_lon(exif_data)
-    # Save locally so can upload to S3
-    local_file = NamedTemporaryFile(suffix="." + finfo["filetype"])
-    im.save(local_file.name)
-
-    s3_finfo = app.s3.save(
-        local_file.name,
-        finfo["filetype"],
-        finfo["mimetype"],
-        Report.id_to_name(rm),
-        rm.id,
-    )
-    photo = PhotoModel(rm, slack_file_id=finfo["id"])
-    photo.s3_url = s3_finfo["path"]
-
-    with app.report.acquire_for_update(rm, photo):
-        # report is locked, and photo has been added to session.
-        if lat and lon:
-            rm.gps = "{},{}".format(lat, lon)
 
 
 def lax_remove(filename):

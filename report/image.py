@@ -2,10 +2,34 @@
 
 from io import BytesIO
 import os
+from tempfile import NamedTemporaryFile
+
 
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 import requests
+
+
+def add_photo(s3, finfo, rid):
+    # Assume called in app context.
+    im = fetch_image(finfo["url_private"])
+
+    # fetch image, find GPS coordinates - note that IOS actually strips this
+    # so likely we won't find any.
+    exif_data = get_exif_data(im)
+    lat, lon = get_lat_lon(exif_data)
+
+    # Save locally so can upload to S3
+    local_file = NamedTemporaryFile(suffix="." + finfo["filetype"])
+    im.save(local_file.name)
+
+    s3_finfo = s3.save(
+        local_file.name,
+        finfo["filetype"],
+        finfo["mimetype"],
+        rid,
+    )
+    return s3_finfo, lat, lon
 
 
 def fetch_image(url) -> Image.Image:
