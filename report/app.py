@@ -8,8 +8,6 @@ from flask import Flask
 
 from api import api
 import asyncev
-from dbmodel import db
-from report import Report
 
 from dynamo import Report as DynamoReport
 import s3
@@ -53,6 +51,9 @@ def create_app():
     if app.config["USE_DYNAMO"]:
         app.report = DynamoReport(app.config)
     else:
+        from dbmodel import db
+        from report import Report
+
         db.init_app(app)
         app.report = Report(db, app)
     app.register_blueprint(api)

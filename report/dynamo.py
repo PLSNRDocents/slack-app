@@ -37,6 +37,8 @@ from constants import (
     TYPE_DISTURBANCE,
 )
 
+TN_LOOKUP = {"reports": "reports", "idgen": "idgen"}
+
 TABLES = [
     {
         "TableName": "reports",
@@ -145,13 +147,20 @@ class Report:
             self._session = boto3.Session()
 
         client_kwargs = {}
-        local = True if config["DYNAMO_ENABLE_LOCAL"] else False
+        local = True if config.get("DYNAMO_ENABLE_LOCAL", None) else False
         if local:
             client_kwargs["endpoint_url"] = "http://{}:{}".format(
                 config["DYNAMO_LOCAL_HOST"], config["DYNAMO_LOCAL_PORT"]
             )
 
         self._conn = self._session.resource("dynamodb", **client_kwargs)
+        if config.get("DYNAMO_TABLE_SUFFIX", None):
+            for table in TABLES:
+                table["TableName"] = table["TableName"] + config.get(
+                    "DYNAMO_TABLE_SUFFIX"
+                )
+            for n, tn in TN_LOOKUP.items():
+                TN_LOOKUP[n] = tn + config.get("DYNAMO_TABLE_SUFFIX")
 
     def start_new(self):
         """ When creating a report using interactive messages and photos
@@ -171,7 +180,7 @@ class Report:
             create_ts=dts,
             update_ts=dts,
         )
-        table = self._conn.Table("reports")
+        table = self._conn.Table(TN_LOOKUP["reports"])
         rv = table.put_item(Item=rm2ddb(nr))
         self._logger.info("New report: rv {}".format(rv))
         return nr
@@ -200,13 +209,13 @@ class Report:
         nr.status = STATUS_REPORTED
         Report._fillin(nr, rtype, who, channel, dinfo)
 
-        table = self._conn.Table("reports")
+        table = self._conn.Table(TN_LOOKUP["reports"])
         rv = table.put_item(Item=rm2ddb(nr))
         self._logger.info("Finished report: rv {}".format(rv))
         return nr
 
     def fetch_all(self, limit=10, active=True) -> List[ReportModel]:
-        table = self._conn.Table("reports")
+        table = self._conn.Table(TN_LOOKUP["reports"])
         qopts = dict(
             KeyConditionExpression=Key("pk").eq("2xxx"), ScanIndexForward=False
         )
@@ -224,7 +233,7 @@ class Report:
 
     def _get(self, rid):
         """ Fetch based on unique id. """
-        table = self._conn.Table("reports")
+        table = self._conn.Table(TN_LOOKUP["reports"])
         rv = table.query(KeyConditionExpression=Key("id").eq(rid), IndexName="reportid")
         if len(rv["Items"]) != 1:
             raise ValueError
@@ -239,7 +248,7 @@ class Report:
             # remove from S3.
             s3.delete(p.s3_url, rid)
 
-        table = self._conn.Table("reports")
+        table = self._conn.Table(TN_LOOKUP["reports"])
         table.delete_item(Key=dict(pk=rm.pk, update_ts=rm.update_ts))
 
     def delete_photos(self, rid, s3):
@@ -249,7 +258,7 @@ class Report:
             # remove from S3.
             s3.delete(p.s3_url, rid)
         rm.photos = []
-        table = self._conn.Table("reports")
+        table = self._conn.Table(TN_LOOKUP["reports"])
         table.put_item(Item=rm2ddb(rm))
 
     def add_photo(self, s3, finfo, rm: ReportModel):
@@ -262,7 +271,7 @@ class Report:
         rm.photos.append(pm)
         if not rm.gps and lat and lon:
             rm.gps = "{},{}".format(lat, lon)
-        table = self._conn.Table("reports")
+        table = self._conn.Table(TN_LOOKUP["reports"])
         table.put_item(Item=rm2ddb(rm))
 
     def create_all(self):
@@ -279,7 +288,7 @@ class Report:
             table.delete()
 
     def _get_next_id(self, year):
-        table = self._conn.Table("idgen")
+        table = self._conn.Table(TN_LOOKUP["idgen"])
         rv = table.update_item(
             Key=dict(year=str(year)),
             UpdateExpression="add yearid :o",

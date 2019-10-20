@@ -22,7 +22,7 @@ class DevSettings(Settings):
 
     USE_DYNAMO = True
     DYNAMO_ENABLE_LOCAL = True
-    DYNAMO_LOCAL_HOST = 'localhost'
+    DYNAMO_LOCAL_HOST = "localhost"
     DYNAMO_LOCAL_PORT = 8000
 
 
@@ -36,6 +36,9 @@ class AWSDevSettings(Settings):
 
     S3_BUCKET = "plsnr-slack-test"
     BOT_NAME = "otter-bot"
+
+    USE_DYNAMO = True
+    DYNAMO_TABLE_SUFFIX = "-test"
 
 
 class AWSRDSSettings(DevSettings):

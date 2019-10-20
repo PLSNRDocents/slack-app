@@ -23,12 +23,7 @@ def add_photo(s3, finfo, rid):
     local_file = NamedTemporaryFile(suffix="." + finfo["filetype"])
     im.save(local_file.name)
 
-    s3_finfo = s3.save(
-        local_file.name,
-        finfo["filetype"],
-        finfo["mimetype"],
-        rid,
-    )
+    s3_finfo = s3.save(local_file.name, finfo["filetype"], finfo["mimetype"], rid)
     return s3_finfo, lat, lon
 
 

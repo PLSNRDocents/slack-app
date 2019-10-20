@@ -10,7 +10,6 @@ import asyncev
 from asyncev import run_async
 from constants import TRAIL_VALUE_2_DESC, TYPE_TRAIL, TYPE_DISTURBANCE, ISSUES_2_DESC
 from otterbot import talk_to_me
-import report
 from slack_api import get_file_info, post, post_message, send_update
 
 api = Blueprint("api", __name__, url_prefix="/")
@@ -324,7 +323,7 @@ def handle_report_submit(rjson):
             # inform user - and replace initial message
             send_update(
                 state["ru"],
-                "Report [{}] saved.".format(report.Report.id_to_name(nr)),
+                "Report [{}] saved.".format(app.report.id_to_name(nr)),
                 replace_original=True,
             )
         else:
@@ -338,7 +337,7 @@ def handle_report_submit(rjson):
             post_message(
                 rjson["channel"]["id"],
                 rjson["user"]["id"],
-                "Report [{}] saved.".format(report.Report.id_to_name(nr)),
+                "Report [{}] saved.".format(app.report.id_to_name(nr)),
             )
     return {}
 

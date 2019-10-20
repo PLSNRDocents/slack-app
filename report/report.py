@@ -2,7 +2,6 @@
 
 from contextlib import contextmanager
 import logging
-from tempfile import NamedTemporaryFile
 from typing import List
 import os
 

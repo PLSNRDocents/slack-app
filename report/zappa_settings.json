@@ -12,9 +12,6 @@
         "environment_variables": {
             "PLSNRENV": "AWSDev"
         },
-        "vpc_config": {
-            "SecurityGroupIds": ["sg-0b1207452572162b3"]
-        },
         "timeout_seconds": 60,
         "async_source": "lambda",
         "async_resources": false
