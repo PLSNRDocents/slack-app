@@ -116,6 +116,26 @@ def events():
                 )
             )
             run_async(current_app.config["EV_MODE"], handle_file, event)
+        elif event["type"] == "message":
+            subtype = event.get("subtype", "")
+            if subtype and subtype != "file_share":
+                # ignore
+                logger.info("Ignoring message subtype {}".format(subtype))
+            else:
+                # Treat like a mention - seems like this can only be DMs.
+                logger.info(
+                    "DM from {} channel {} id {}".format(
+                        event["user"], event["channel"], payload["event_id"]
+                    )
+                )
+                # hack - make it look same as a @mention.
+                event["text"] = "DM " + event["text"]
+                run_async(
+                    current_app.config["EV_MODE"],
+                    talk_to_me,
+                    payload["event_id"],
+                    event,
+                )
         else:
             logger.info("Unhandled Sub-Event type: {}".format(event["type"]))
 
@@ -129,7 +149,7 @@ def handle_file(event):
     # This runs async w/o an app context.
     finfo = get_file_info(event["file_id"])["file"]
     logger.info(
-        "File info image link {} channels {}".format(
+        "IGNORING: File info image link {} channels {}".format(
             finfo["url_private"], finfo["channels"]
         )
     )

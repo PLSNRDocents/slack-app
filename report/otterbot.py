@@ -8,6 +8,7 @@ import datetime
 import logging
 import json
 from random import randint
+import re
 import traceback
 
 import asyncev
@@ -23,15 +24,14 @@ logger = logging.getLogger(__name__)
 
 def talk_to_me(event_id, event):
     """
-    We were @app_mention'd.
+    We were @app_mention'd or DM'd.
     NOT IN APP context.
     TODO: NLP
 
     Commands:
     "rep(orts)"
-    "photo <report id>"
+    "<report_id> del(ete) | photo
     "new r(eport)"
-    "del(ete) <report_id>
     "at <where>"
 
     """
@@ -91,7 +91,7 @@ def talk_to_me(event_id, event):
                                 app.config["S3_BUCKET"], r.photos[0].s3_url
                             )
                         text = (
-                            "[{}] {} _{}_ reported {}:\n*{}* on _{}_ {}"
+                            "[{}] {} _{}_ reported {}:\n*{}* {verb} _{location}_ {gps}"
                             " {photo_link}".format(
                                 app.report.id_to_name(r),
                                 dt,
@@ -100,8 +100,9 @@ def talk_to_me(event_id, event):
                                 if r.type == TYPE_TRAIL
                                 else "disturbance",
                                 xlate_issues(r.issues),
-                                TRAIL_VALUE_2_DESC[r.location],
-                                gps,
+                                verb="on" if r.location.startswith("t") else "at",
+                                location=TRAIL_VALUE_2_DESC.get(r.location, "??"),
+                                gps=gps,
                                 photo_link="(<{}|Big Picture>)".format(url)
                                 if url
                                 else "",
@@ -117,45 +118,6 @@ def talk_to_me(event_id, event):
                         else:
                             blocks.append(text_block(text))
                 post_message(event["channel"], event["user"], blocks)
-            elif whatsup[1].startswith("photo"):
-                try:
-                    rname = whatsup[2]
-                    rid = app.report.name_to_id(rname)
-                    rm = app.report.get(rid)
-                    if not rm:
-                        post_message(
-                            event["channel"],
-                            event["user"],
-                            "Could not find report named {}".format(rname),
-                        )
-                        return
-                    if "files" not in event:
-                        post_message(
-                            event["channel"],
-                            event["user"],
-                            "No photos attached? for report {}".format(rname),
-                        )
-                        return
-                    for finfo in event["files"]:
-                        logger.info("Adding file {}".format(json.dumps(finfo)))
-                        app.report.add_photo(app.s3, finfo, rm)
-                    post_message(
-                        event["channel"],
-                        event["user"],
-                        "Added {} photos to report {}".format(
-                            len(event["files"]), rname
-                        ),
-                    )
-                except (ValueError, IndexError) as exc:
-                    logging.error(
-                        "Error handling photo for report {}: {}".format(rm.id, exc)
-                    )
-                    post_message(
-                        event["channel"],
-                        event["user"],
-                        "Use: *@{}* photo _report-id_ to add attached photo"
-                        " to an existing report".format(app.config["BOT_NAME"]),
-                    )
             elif whatsup[1] == "new":
                 try:
                     what = whatsup[2]
@@ -196,70 +158,103 @@ def talk_to_me(event_id, event):
                         )
                         app.report.add_photo(app.s3, finfo, nr)
 
-            elif whatsup[1].startswith("del"):
-                # TODO authz
-                # We handle delete report_id
-                # and delete report_id photos
-                if len(whatsup) == 3:
-                    # delete entire report
-                    just_photos = False
-                elif len(whatsup) == 4 and whatsup[3].startswith("photo"):
-                    just_photos = True
-                else:
-                    post_message(
-                        event["channel"],
-                        event["user"],
-                        "Use: *@{}* delete _report_id_ OR"
-                        " {} delete _report_id_ photos".format(
-                            app.config["BOT_NAME"], app.config["BOT_NAME"]
-                        ),
-                    )
-                    return
+            elif re.match(r"(TR|DR|[12][0-9])", whatsup[1], re.IGNORECASE):
+                # <report_id> del [photo]
+                # <report_id> photo
+                rname = whatsup[1]
 
-                rname = whatsup[2]
-                logger.info(
-                    "User {}({}) requesting to delete {} {}".format(
-                        event["user"],
-                        user_to_name(event["user"]),
-                        "photos" if just_photos else "report",
-                        rname,
-                    )
+                usage = (
+                    "Use: _report_id_ del(ete) - Delete report entirely\n"
+                    "_report_id_ del(ete) photo(s) -"
+                    " Delete all photos from report\n"
+                    "_report_id_ photo - Add (attached) photos to report"
                 )
                 try:
-                    rid = app.report.name_to_id(rname)
-                    if just_photos:
-                        app.report.delete_photos(rid, app.s3)
-                    else:
-                        app.report.delete(rid, app.s3)
-                    post_message(
-                        event["channel"],
-                        event["user"],
-                        "Deleted {} report {}".format(
-                            "photos from" if just_photos else "", rname
-                        ),
-                    )
-                except ValueError:
-                    post_message(
-                        event["channel"],
-                        event["user"],
-                        "Use: *@{}* delete _report_id_ OR"
-                        " *@{}* delete _report_id_ photos".format(
-                            app.config["BOT_NAME"], app.config["BOT_NAME"]
-                        ),
-                    )
+                    action = whatsup[2]
+
+                    if action.startswith("del"):
+                        # TODO authz
+                        # We handle delete report_id
+                        # and delete report_id photos
+                        if len(whatsup) == 3:
+                            # delete entire report
+                            just_photos = False
+                        elif len(whatsup) == 4 and whatsup[3].startswith("photo"):
+                            just_photos = True
+                        else:
+                            post_message(event["channel"], event["user"], usage)
+                            return
+                        logger.info(
+                            "User {}({}) requesting to delete {} {}".format(
+                                event["user"],
+                                user_to_name(event["user"]),
+                                "photos" if just_photos else "report",
+                                rname,
+                            )
+                        )
+                        rid = app.report.name_to_id(rname)
+                        if just_photos:
+                            app.report.delete_photos(rid, app.s3)
+                        else:
+                            app.report.delete(rid, app.s3)
+                        post_message(
+                            event["channel"],
+                            event["user"],
+                            "Deleted {} report {}".format(
+                                "photos from" if just_photos else "", rname
+                            ),
+                        )
+                    elif action.startswith("photo"):
+                        rid = app.report.name_to_id(rname)
+                        rm = app.report.get(rid)
+                        if not rm:
+                            post_message(
+                                event["channel"],
+                                event["user"],
+                                "Could not find report named {}".format(rname),
+                            )
+                            return
+                        if "files" not in event:
+                            post_message(
+                                event["channel"],
+                                event["user"],
+                                "No photos attached? for report {}".format(rname),
+                            )
+                            return
+                        for finfo in event["files"]:
+                            logger.info(
+                                "Adding file {} to report {}".format(
+                                    json.dumps(finfo), rname
+                                )
+                            )
+                            app.report.add_photo(app.s3, finfo, rm)
+                        post_message(
+                            event["channel"],
+                            event["user"],
+                            "Added {} photos to report {}".format(
+                                len(event["files"]), rname
+                            ),
+                        )
+                except (ValueError, IndexError) as exc:
+                    logger.warning("Error working on report {}: {}".format(rname, exc))
+                    post_message(event["channel"], event["user"], usage)
             elif whatsup[1] == "at":
                 where = None
                 if len(whatsup) > 2:
                     where = whatsup[2]
-                post_message(
-                    event["channel"],
-                    event["user"],
-                    [
-                        text_block(
-                            "I am going to need to dive deep to find that out for you."
-                        )
-                    ],
-                )
+                if not plweb.cached_whoat(
+                    datetime.date.today().strftime("%Y%m%d"), where
+                ):
+                    post_message(
+                        event["channel"],
+                        event["user"],
+                        [
+                            text_block(
+                                "I am going to need to dive deep to find that"
+                                " out for you."
+                            )
+                        ],
+                    )
                 atinfo = plweb.whoat(datetime.date.today().strftime("%Y%m%d"), where)
                 blocks = []
                 for loc, what in atinfo.items():
@@ -277,7 +272,8 @@ def talk_to_me(event_id, event):
                         "Sorry didn't hear you - I was sleeping.\nYou can ask for:\n"
                         "*reports* - Show most recent trail/disturbance reports.\n"
                         "*new* - Create a report with photos.\n"
-                        "*photo* - Add photos to an existing report.\n"
+                        "_report_id_ - Modify/Delete/Add photos"
+                        " to an existing report.\n"
                         "*at* - who's doing what at the Reserve today.\n"
                     )
                 ]

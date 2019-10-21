@@ -5,7 +5,7 @@ import os
 
 
 from bs4 import BeautifulSoup
-import cachetools.func
+from cachetools import cached, keys, TTLCache
 import requests
 
 from exc import ParseError
@@ -15,6 +15,8 @@ VERBOSE = 0
 SESSION = requests.session()
 
 logger = logging.getLogger(__name__)
+
+whoat_cache = TTLCache(maxsize=128, ttl=60 * 60)
 
 
 IDX_TO_TIME = ["label", "9-11", "11-1", "1-3", "3-5"]
@@ -186,7 +188,7 @@ def _get_presenter(page):
     return presenter
 
 
-@cachetools.func.ttl_cache(600, ttl=60 * 60)
+@cached(whoat_cache)
 def whoat(when, where=None):
     """
     Get info on who is where by querying calendars.
@@ -260,3 +262,7 @@ def whoat(when, where=None):
         rv.raise_for_status()
         ans[info["title"]] = info["parser"](rv.text)
     return ans
+
+
+def cached_whoat(when, where=None):
+    return keys.hashkey(when, where) in whoat_cache

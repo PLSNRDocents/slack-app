@@ -20,6 +20,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 import decimal
 import logging
+import re
 from typing import List
 
 import boto3
@@ -236,7 +237,7 @@ class Report:
         table = self._conn.Table(TN_LOOKUP["reports"])
         rv = table.query(KeyConditionExpression=Key("id").eq(rid), IndexName="reportid")
         if len(rv["Items"]) != 1:
-            raise ValueError
+            raise ValueError("Report {} not found".format(rid))
         return ddb2rm(rv["Items"][0])
 
     def get(self, rid) -> ReportModel:
@@ -309,6 +310,6 @@ class Report:
 
     @staticmethod
     def name_to_id(rname):
-        if rname.startswith("TR-") or rname.startswith("DR-"):
+        if re.match(r"(TR-|DR-)", rname, re.IGNORECASE):
             rname = rname[3:]
         return rname
