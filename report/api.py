@@ -212,7 +212,7 @@ def open_trail_report_dialogue(trigger, state):
                 "options": trail_issues,
             },
             {
-                "label": "Which Trail",
+                "label": "Trail/Location",
                 "type": "select",
                 "name": "location",
                 "options": trail_options,
@@ -283,7 +283,7 @@ def open_disturbance_report_dialogue(trigger, state):
                 "options": disturbance_issues,
             },
             {
-                "label": "Which Trail",
+                "label": "Trail/Location",
                 "type": "select",
                 "name": "location",
                 "options": trail_options,
@@ -371,6 +371,8 @@ def handle_report_cancel(rjson):
             # state is json containing report id and response url
             state = json.loads(rjson["state"])
             logger.info("Cancelled - deleting report {}".format(state["rid"]))
-            app.report.delete(state["rid"])
+            rm = app.report.get(state["rid"])
+            if rm:
+                app.report.delete(rm, app.s3)
             send_update(state["ru"], "", delete_original=True)
     return {}

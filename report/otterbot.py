@@ -12,7 +12,14 @@ import re
 import traceback
 
 import asyncev
-from constants import TRAIL_VALUE_2_DESC, TYPE_DISTURBANCE, TYPE_TRAIL, xlate_issues
+from constants import (
+    STATUS_PLACEHOLDER,
+    STATUS_CLOSED,
+    TRAIL_VALUE_2_DESC,
+    TYPE_DISTURBANCE,
+    TYPE_TRAIL,
+    xlate_issues,
+)
 
 import plweb
 from quotes import QUOTES
@@ -20,6 +27,9 @@ from slack_api import post_message, user_to_name
 
 
 logger = logging.getLogger(__name__)
+
+# U4DUR80RG - jwag
+ADMIN_USER_IDS = ["U4DUR80RG"]
 
 
 def talk_to_me(event_id, event):
@@ -49,9 +59,8 @@ def talk_to_me(event_id, event):
                 if "files" in event or (
                     len(whatsup) > 2 and whatsup[2].startswith("new")
                 ):
-                    post_message(
-                        event["channel"],
-                        event["user"],
+                    pme(
+                        event,
                         "It appears you are trying to create a report -"
                         " use *@{}* new".format(app.config["BOT_NAME"]),
                     )
@@ -91,15 +100,19 @@ def talk_to_me(event_id, event):
                                 app.config["S3_BUCKET"], r.photos[0].s3_url
                             )
                         text = (
-                            "[{}] {} _{}_ reported {}:\n*{}* {verb} _{location}_ {gps}"
+                            "[{}] {date} _{who}_ {status} {type}:"
+                            "\n*{issue}* {verb} _{location}_ {gps}"
                             " {photo_link}".format(
                                 app.report.id_to_name(r),
-                                dt,
-                                r.reporter if r.reporter else r.reporter_slack_handle,
-                                "trail issue"
+                                date=dt,
+                                who=r.reporter
+                                if r.reporter
+                                else r.reporter_slack_handle,
+                                status=r.status,
+                                type="trail issue"
                                 if r.type == TYPE_TRAIL
                                 else "disturbance",
-                                xlate_issues(r.issues),
+                                issue=xlate_issues(r.issues),
                                 verb="on" if r.location.startswith("t") else "at",
                                 location=TRAIL_VALUE_2_DESC.get(r.location, "??"),
                                 gps=gps,
@@ -124,9 +137,8 @@ def talk_to_me(event_id, event):
                     if not what.startswith("r"):
                         raise ValueError()
                 except (ValueError, IndexError):
-                    post_message(
-                        event["channel"],
-                        event["user"],
+                    pme(
+                        event,
                         "Use: *@{}* new r(eport) to start a new report "
                         "(with attached photos).".format(app.config["BOT_NAME"]),
                     )
@@ -148,7 +160,7 @@ def talk_to_me(event_id, event):
                     "Select an item",
                     [("Trail", TYPE_TRAIL), ("Disturbance", TYPE_DISTURBANCE)],
                 )
-                post_message(event["channel"], event["user"], [b])
+                pme(event, [b])
 
                 # grab photos
                 if "files" in event:
@@ -161,21 +173,35 @@ def talk_to_me(event_id, event):
             elif re.match(r"(TR|DR|[12][0-9])", whatsup[1], re.IGNORECASE):
                 # <report_id> del [photo]
                 # <report_id> photo
+                # <report_id> close
                 rname = whatsup[1]
 
                 usage = (
                     "Use: _report_id_ del(ete) - Delete report entirely\n"
                     "_report_id_ del(ete) photo(s) -"
                     " Delete all photos from report\n"
-                    "_report_id_ photo - Add (attached) photos to report"
+                    "_report_id_ photo - Add (attached) photos to report\n"
+                    "_report_id_ close - close a trail report"
                 )
                 try:
                     action = whatsup[2]
+                    rid = app.report.name_to_id(rname)
+                    rm = app.report.get(rid)
+                    if not rm:
+                        pme(
+                            event,
+                            "Could not find report named {}\n{}".format(rname, usage),
+                        )
+                        return
 
                     if action.startswith("del"):
-                        # TODO authz
-                        # We handle delete report_id
-                        # and delete report_id photos
+                        if event["user"] not in ADMIN_USER_IDS:
+                            post_message(
+                                event["channel"],
+                                event["user"],
+                                "You aren't authorized to delete reports",
+                            )
+                            return
                         if len(whatsup) == 3:
                             # delete entire report
                             just_photos = False
@@ -192,33 +218,20 @@ def talk_to_me(event_id, event):
                                 rname,
                             )
                         )
-                        rid = app.report.name_to_id(rname)
                         if just_photos:
-                            app.report.delete_photos(rid, app.s3)
+                            app.report.delete_photos(rm, app.s3)
                         else:
-                            app.report.delete(rid, app.s3)
-                        post_message(
-                            event["channel"],
-                            event["user"],
+                            app.report.delete(rm, app.s3)
+                        pme(
+                            event,
                             "Deleted {} report {}".format(
                                 "photos from" if just_photos else "", rname
                             ),
                         )
                     elif action.startswith("photo"):
-                        rid = app.report.name_to_id(rname)
-                        rm = app.report.get(rid)
-                        if not rm:
-                            post_message(
-                                event["channel"],
-                                event["user"],
-                                "Could not find report named {}".format(rname),
-                            )
-                            return
                         if "files" not in event:
-                            post_message(
-                                event["channel"],
-                                event["user"],
-                                "No photos attached? for report {}".format(rname),
+                            pme(
+                                event, "No photos attached? for report {}".format(rname)
                             )
                             return
                         for finfo in event["files"]:
@@ -228,16 +241,26 @@ def talk_to_me(event_id, event):
                                 )
                             )
                             app.report.add_photo(app.s3, finfo, rm)
-                        post_message(
-                            event["channel"],
-                            event["user"],
+                        pme(
+                            event,
                             "Added {} photos to report {}".format(
                                 len(event["files"]), rname
                             ),
                         )
+                    elif action.startswith("close"):
+                        # Can only close trail reports
+                        if rm.type != TYPE_TRAIL:
+                            pme(event, "Only Trail reports can be closed")
+                        else:
+                            if rm.status != STATUS_PLACEHOLDER:
+                                rm.status = STATUS_CLOSED
+                                app.report.update(rm)
+                                pme(event, "Closed report {}".format(rname))
+                    else:
+                        pme(event, usage)
                 except (ValueError, IndexError) as exc:
                     logger.warning("Error working on report {}: {}".format(rname, exc))
-                    post_message(event["channel"], event["user"], usage)
+                    pme(event, usage)
             elif whatsup[1] == "at":
                 where = None
                 if len(whatsup) > 2:
@@ -245,9 +268,8 @@ def talk_to_me(event_id, event):
                 if not plweb.cached_whoat(
                     datetime.date.today().strftime("%Y%m%d"), where
                 ):
-                    post_message(
-                        event["channel"],
-                        event["user"],
+                    pme(
+                        event,
                         [
                             text_block(
                                 "I am going to need to dive deep to find that"
@@ -265,7 +287,7 @@ def talk_to_me(event_id, event):
                             if "title" in i:
                                 t += " - {}".format(i["title"])
                         blocks.append(text_block(t))
-                post_message(event["channel"], event["user"], blocks)
+                pme(event, blocks)
             else:
                 blocks = [
                     text_block(
@@ -284,7 +306,7 @@ def talk_to_me(event_id, event):
                         "https://media.giphy.com/media/drxyCDMT7kkvu1FWNZ/giphy.gif",
                     )
                 )
-                post_message(event["channel"], event["user"], blocks)
+                pme(event, blocks)
     except Exception as exc:
         logger.error(
             "Exception in talk_to_me {}:{}".format(exc, traceback.format_exc())
@@ -350,3 +372,7 @@ def action_block(block_id, place_text, options: list):
 
 def divider_block():
     return {"type": "divider"}
+
+
+def pme(event, text):
+    post_message(event["channel"], event["user"], text)

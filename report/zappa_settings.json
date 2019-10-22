@@ -5,7 +5,7 @@
         "project_name": "plsnr-slack-app",
         "runtime": "python3.7",
         "s3_bucket": "zappa-plsnr-dev",
-        "keep_warm": false,
+        "keep_warm": true,
         "delete_local_zip": true,
         "num_retained_versions": 20,
         "exclude": ["*.gz", "*.zip", ".pytest_cache/*"],

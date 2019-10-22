@@ -230,6 +230,14 @@ class Report:
         rm = []
         for i in rv["Items"]:
             rm.append(ddb2rm(i))
+        limit -= len(rv["Items"])
+        while "LastEvaluatedKey" in rv and limit > 0:
+            qopts["ExclusiveStartKey"] = rv["LastEvaluatedKey"]
+            qopts["Limit"] = limit
+            rv = table.query(**qopts)
+            for i in rv["Items"]:
+                rm.append(ddb2rm(i))
+            limit -= len(rv["Items"])
         return rm
 
     def _get(self, rid):
@@ -237,28 +245,35 @@ class Report:
         table = self._conn.Table(TN_LOOKUP["reports"])
         rv = table.query(KeyConditionExpression=Key("id").eq(rid), IndexName="reportid")
         if len(rv["Items"]) != 1:
-            raise ValueError("Report {} not found".format(rid))
+            if len(rv["Items"]) > 1:
+                self._logger.error("Received multiple results for rid {}".format(rid))
+            return None
         return ddb2rm(rv["Items"][0])
 
     def get(self, rid) -> ReportModel:
         return self._get(rid)
 
-    def delete(self, rid, s3):
-        rm = self._get(rid)
+    def delete(self, rm: ReportModel, s3):
         for p in rm.photos:
             # remove from S3.
-            s3.delete(p.s3_url, rid)
+            s3.delete(p.s3_url, rm.id)
 
         table = self._conn.Table(TN_LOOKUP["reports"])
         table.delete_item(Key=dict(pk=rm.pk, update_ts=rm.update_ts))
 
-    def delete_photos(self, rid, s3):
+    def delete_photos(self, rm: ReportModel, s3):
         # delete all photos but leave report alone
-        rm = self._get(rid)
         for p in rm.photos:
             # remove from S3.
-            s3.delete(p.s3_url, rid)
+            s3.delete(p.s3_url, rm.id)
         rm.photos = []
+        table = self._conn.Table(TN_LOOKUP["reports"])
+        table.put_item(Item=rm2ddb(rm))
+
+    def update(self, rm: ReportModel):
+        """ Update report.
+        We just update the entire record because - that's easier.
+        """
         table = self._conn.Table(TN_LOOKUP["reports"])
         table.put_item(Item=rm2ddb(rm))
 
