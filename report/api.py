@@ -98,23 +98,14 @@ def events():
         return dict(challenge=payload["challenge"])
     elif payload["type"] == "event_callback":
         event = payload["event"]
+        logger.info("Event id {} {}".format(payload["event_id"], event))
 
         if event["type"] == "app_mention":
             # let's chat
-            logger.info(
-                "App_mention from {} channel {} id {}".format(
-                    event["user"], event["channel"], payload["event_id"]
-                )
-            )
             run_async(
                 current_app.config["EV_MODE"], talk_to_me, payload["event_id"], event
             )
         elif event["type"] == "file_created" or event["type"] == "file_shared":
-            logger.info(
-                "Event {} from {} channel {}".format(
-                    event["type"], event["user_id"], event["channel_id"]
-                )
-            )
             run_async(current_app.config["EV_MODE"], handle_file, event)
         elif event["type"] == "message":
             subtype = event.get("subtype", "")
@@ -123,11 +114,6 @@ def events():
                 logger.info("Ignoring message subtype {}".format(subtype))
             else:
                 # Treat like a mention - seems like this can only be DMs.
-                logger.info(
-                    "DM from {} channel {} id {}".format(
-                        event["user"], event["channel"], payload["event_id"]
-                    )
-                )
                 # hack - make it look same as a @mention.
                 event["text"] = "DM " + event["text"]
                 run_async(
@@ -137,7 +123,7 @@ def events():
                     event,
                 )
         else:
-            logger.info("Unhandled Sub-Event type: {}".format(event["type"]))
+            logger.info("Ignored Event type: {}".format(event["type"]))
 
         # Always respond
         return "", 200
@@ -147,7 +133,8 @@ def events():
 
 def handle_file(event):
     # This runs async w/o an app context.
-    finfo = get_file_info(event["file_id"])["file"]
+    finfo = get_file_info(event["file_id"])
+    finfo = finfo["file"]
     logger.info(
         "IGNORING: File info image link {} channels {}".format(
             finfo["url_private"], finfo["channels"]

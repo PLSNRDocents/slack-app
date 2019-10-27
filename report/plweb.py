@@ -66,7 +66,7 @@ def parse_form_data(hc: BeautifulSoup, needed=None):
     return _special_info
 
 
-def today(page):
+def at_station(page, when):
     """ Returns a list:
     [{
         "time": <time>,
@@ -74,17 +74,21 @@ def today(page):
      }, ...
     ]
     """
+    # This assumes date of form YYYYMMDD
+    dom = str(int(when[6:]))
     hc = BeautifulSoup(page, features="html.parser")
     shift_days = hc.find_all("td", class_="shift-day")
     for shift in shift_days:
-        # look for one 'day-today'
-        dt = shift.find_all("table", class_="day-today")
-        if dt:
-            # there should be 5 rows - first is label
+        cd = shift.find_all("table", class_="calendar-day")
+        rows = cd[0].find_all("tr")
+        date_labels = rows[0].find_all("div", class_="label-date")
+        # mostly text is just 'dd' - but for 'at_station' it is '*dd*'
+        rdom = date_labels[0].text.strip("*")
+        if dom == rdom:
+            # This is us.
             ans = []
-            rows = dt[0].find_all("tr")
             if len(rows) != 5:
-                raise ParseError("{} rows in today table".format(len(rows)))
+                raise ParseError("{} rows in at_station table".format(len(rows)))
             for idx, row_data in enumerate(rows):
                 if idx > 0:
                     # Each row has one or more <span>
@@ -98,7 +102,7 @@ def _gettime(d):
     Public-Walks time is: <div><strong>9:30am</strong></div>
     Interp time is: <div><strong><time datetime="00Z">9:15am</time>
                      - <time datetime="00Z">11:15am</time>
-    Docent Activitiy: <div><time datetime="00Z">9:30am</time></div>
+    Docent Activity: <div><time datetime="00Z">9:30am</time></div>
     """
     times = d.find_all("time")
     if len(times) == 2:
@@ -110,7 +114,7 @@ def _gettime(d):
     return t
 
 
-def today_pw(page):
+def at_pw(page, when):
     """ Public Walks and Interp (gate greet) Calendar.
     Returns a list:
     [{
@@ -120,14 +124,15 @@ def today_pw(page):
      }, ...
     ]
     """
+    dom = str(int(when[6:]))
     hc = BeautifulSoup(page, features="html.parser")
-    todays = hc.find_all("td", class_="today")
+    days = hc.find_all("td", class_="single-day")
     walks = []
-    # There will be 2 todays - one is the title...
-    for td in todays:
-        info = td.find_all("div", class_="contents")
-        if info:
-            walks.extend(info)
+    for day in days:
+        if day["data-day-of-month"] == dom:
+            info = day.find_all("div", class_="contents")
+            if info:
+                walks.extend(info)
     if not walks:
         return []
     ans = []
@@ -143,7 +148,7 @@ def today_pw(page):
     return ans
 
 
-def today_activities(page):
+def at_activities(page, when):
     """ Docent Activities Calendar.
     Returns a list:
     [{
@@ -153,14 +158,15 @@ def today_activities(page):
      }, ...
     ]
     """
+    dom = str(int(when[6:]))
     hc = BeautifulSoup(page, features="html.parser")
-    todays = hc.find_all("td", class_="today")
+    days = hc.find_all("td", class_="single-day")
     walks = []
-    # There will be 2 todays - one is the title...
-    for td in todays:
-        info = td.find_all("div", class_="contents")
-        if info:
-            walks.extend(info)
+    for day in days:
+        if day["data-day-of-month"] == dom:
+            info = day.find_all("div", class_="contents")
+            if info:
+                walks.extend(info)
     if not walks:
         return []
     ans = []
@@ -193,7 +199,7 @@ def whoat(when, where=None):
     """
     Get info on who is where by querying calendars.
     If 'where' is None - try to find everything going on.
-    Works for 'today' only.
+    Works for 'at_station' only.
     The 'when' argument is needed for proper caching - and should be
     unique for the day - e.g. 20191001
     """
@@ -202,27 +208,27 @@ def whoat(when, where=None):
         "info": {
             "title": "Info-Station",
             "cal_url": "schedule/info-station",
-            "parser": today,
+            "parser": at_station,
         },
         "whalers": {
             "title": "Whaler's Cabin",
             "cal_url": "schedule/whalers-cabin",
-            "parser": today,
+            "parser": at_station,
         },
         "public": {
             "title": "Public Walks",
             "cal_url": "schedule/public-walks/month",
-            "parser": today_pw,
+            "parser": at_pw,
         },
         "gate": {
             "title": "Gate Greet/Scoping/Pup",
             "cal_url": "schedule/interpretive-duty/month",
-            "parser": today_pw,
+            "parser": at_pw,
         },
         "other": {
             "title": "Other Activities",
             "cal_url": "community/activities/month",
-            "parser": today_activities,
+            "parser": at_activities,
         },
     }
     if not where:
@@ -260,7 +266,7 @@ def whoat(when, where=None):
             login(os.environ["PLSNR_USERNAME"], os.environ["PLSNR_PASSWORD"])
             rv = get_session().get("{url}/{ep}".format(url=URL, ep=info["cal_url"]))
         rv.raise_for_status()
-        ans[info["title"]] = info["parser"](rv.text)
+        ans[info["title"]] = info["parser"](rv.text, when)
     return ans
 
 

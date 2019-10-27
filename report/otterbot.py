@@ -23,7 +23,7 @@ from constants import (
 
 import plweb
 from quotes import QUOTES
-from slack_api import post_message, user_to_name
+from slack_api import get_file_info, post_message, user_to_name
 
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ def talk_to_me(event_id, event):
 
     Commands:
     "rep(orts)"
-    "<report_id> del(ete) | photo
+    "<report_id> del(ete) | photo | close
     "new r(eport)"
     "at <where>"
 
@@ -54,7 +54,23 @@ def talk_to_me(event_id, event):
             whatsup = " ".join(event["text"].split()).split()
             # First word is the @mention
 
-            if whatsup[1].startswith("rep"):
+            if len(whatsup) < 2:
+                # This can happen if on iphone one 'attaches' an existing file
+                # rather than use the 'images' icon.
+                # We get 3 messages - a file_shared, and 2 'messages' - one of
+                # which has an empty text but file info the other with the message
+                # but no file (sigh).
+                if "files" in event:
+                    finfo = get_file_info(event["files"][0]["id"])
+                    logger.warning("Empty text but file! {}".format(json.dumps(finfo)))
+                    pme(
+                        event,
+                        "Sorry can't handle attachments via iphone,"
+                        " use the 'images' button instead to send pictures.",
+                    )
+                    return {}
+
+            if re.match(r"rep", whatsup[1], re.IGNORECASE):
                 # Help people who type: report new or attach files
                 if "files" in event or (
                     len(whatsup) > 2 and whatsup[2].startswith("new")
@@ -131,7 +147,7 @@ def talk_to_me(event_id, event):
                         else:
                             blocks.append(text_block(text))
                 post_message(event["channel"], event["user"], blocks)
-            elif whatsup[1] == "new":
+            elif re.match(r"new", whatsup[1], re.IGNORECASE):
                 try:
                     what = whatsup[2]
                     if not what.startswith("r"):
@@ -236,8 +252,8 @@ def talk_to_me(event_id, event):
                             return
                         for finfo in event["files"]:
                             logger.info(
-                                "Adding file {} to report {}".format(
-                                    json.dumps(finfo), rname
+                                "Adding file to report {}: {}".format(
+                                    rname, json.dumps(finfo)
                                 )
                             )
                             app.report.add_photo(app.s3, finfo, rm)
@@ -259,9 +275,13 @@ def talk_to_me(event_id, event):
                     else:
                         pme(event, usage)
                 except (ValueError, IndexError) as exc:
-                    logger.warning("Error working on report {}: {}".format(rname, exc))
+                    logger.warning(
+                        "Error working on report {}: {}: {}".format(
+                            rname, exc, traceback.format_exc()
+                        )
+                    )
                     pme(event, usage)
-            elif whatsup[1] == "at":
+            elif re.match(r"at", whatsup[1], re.IGNORECASE):
                 where = None
                 if len(whatsup) > 2:
                     where = whatsup[2]
@@ -309,7 +329,9 @@ def talk_to_me(event_id, event):
                 pme(event, blocks)
     except Exception as exc:
         logger.error(
-            "Exception in talk_to_me {}:{}".format(exc, traceback.format_exc())
+            "Exception in talk_to_me text: {} {}:{}".format(
+                event["text"], exc, traceback.format_exc()
+            )
         )
     # from zappa docs.
     return {}
