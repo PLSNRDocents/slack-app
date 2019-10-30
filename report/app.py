@@ -9,12 +9,12 @@ from flask import Flask
 from api import api
 import asyncev
 
-from dynamo import Report as DynamoReport
+from constants import LOG_FORMAT, DATE_FMT
+import dynamo
 import s3
 
 REQUIRED_CONFIG = ["SIGNING_SECRET", "BOT_TOKEN"]
-LOG_FORMAT = "%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s"
-DATE_FMT = "%m/%d/%Y %H:%M:%S"
+
 
 logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FMT, level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -49,7 +49,9 @@ def create_app():
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
     logger.info("create_app: init db")
     if app.config["USE_DYNAMO"]:
-        app.report = DynamoReport(app.config)
+        app.ddb = dynamo.DDB(app.config)
+        app.report = dynamo.Report(app.config, app.ddb)
+        app.ddb_cache = dynamo.DDBCache(app.config, app.ddb)
     else:
         from dbmodel import db
         from report import Report
@@ -69,8 +71,8 @@ def create_app():
     @app.before_first_request
     def init_tables():
         if app.config["USE_DYNAMO"]:
-            # app.report.destroy_all()
-            app.report.create_all()
+            # app.ddb.destroy_all()
+            app.ddb.create_all()
 
     return app
 

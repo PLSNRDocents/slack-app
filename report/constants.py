@@ -1,5 +1,8 @@
 # Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
 
+LOG_FORMAT = "%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s"
+DATE_FMT = "%m/%d/%Y %H:%M:%S"
+
 STATUS_PLACEHOLDER = "placeholder"
 STATUS_REPORTED = "reported"
 STATUS_CONFIRMED = "confirmed"

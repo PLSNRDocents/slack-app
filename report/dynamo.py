@@ -20,6 +20,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 import decimal
 import logging
+import json
 import re
 from typing import List
 
@@ -38,7 +39,7 @@ from constants import (
     TYPE_DISTURBANCE,
 )
 
-TN_LOOKUP = {"reports": "reports", "idgen": "idgen"}
+TN_LOOKUP = {"reports": "reports", "idgen": "idgen", "cache": "cache"}
 
 TABLES = [
     {
@@ -68,7 +69,58 @@ TABLES = [
         "KeySchema": [dict(AttributeName="year", KeyType="HASH")],
         "ProvisionedThroughput": {"ReadCapacityUnits": 3, "WriteCapacityUnits": 3},
     },
+    {
+        "TableName": "cache",
+        # PK for 'at': YYYYMMDD:where
+        "AttributeDefinitions": [dict(AttributeName="ckey", AttributeType="S")],
+        "KeySchema": [dict(AttributeName="ckey", KeyType="HASH")],
+        "ProvisionedThroughput": {"ReadCapacityUnits": 3, "WriteCapacityUnits": 3},
+    },
 ]
+
+
+class DDB:
+    def __init__(self, config, need_client=False):
+        self._config = config
+        self._logger = logging.getLogger(__name__)
+        if config.get("AWS_PROFILE", None):
+            self.session = boto3.Session(
+                profile_name=config["AWS_PROFILE"], region_name="us-east-1"
+            )
+        else:
+            self.session = boto3.Session()
+
+        client_kwargs = {}
+        local = True if config.get("DYNAMO_ENABLE_LOCAL", None) else False
+        if local:
+            client_kwargs["endpoint_url"] = "http://{}:{}".format(
+                config["DYNAMO_LOCAL_HOST"], config["DYNAMO_LOCAL_PORT"]
+            )
+
+        self.conn = self.session.resource("dynamodb", **client_kwargs)
+        if need_client:
+            self.client = self.session.client("dynamodb", **client_kwargs)
+        if config.get("DYNAMO_TABLE_SUFFIX", None):
+            for table in TABLES:
+                table["TableName"] = table["TableName"] + config.get(
+                    "DYNAMO_TABLE_SUFFIX"
+                )
+            for n, tn in TN_LOOKUP.items():
+                TN_LOOKUP[n] = tn + config.get("DYNAMO_TABLE_SUFFIX")
+
+    def create_all(self):
+        tables_name_list = [table.name for table in self.conn.tables.all()]
+        for table in TABLES:
+            if table["TableName"] not in tables_name_list:
+                self._logger.info("Creating table {}".format(table["TableName"]))
+                self.conn.create_table(**table)
+
+    def destroy_all(self):
+        for t in TABLES:
+            table = self.conn.Table(t["TableName"])
+            self._logger.info("Deleting table {}".format(t["TableName"]))
+            table.delete()
+
 
 PARTITION_HASH = "2xxx"
 
@@ -137,31 +189,10 @@ def rm2ddb(rm: ReportModel):
 
 
 class Report:
-    def __init__(self, config):
+    def __init__(self, config, ddb: DDB):
         self._config = config
         self._logger = logging.getLogger(__name__)
-        if config.get("AWS_PROFILE", None):
-            self._session = boto3.Session(
-                profile_name=config["AWS_PROFILE"], region_name="us-east-1"
-            )
-        else:
-            self._session = boto3.Session()
-
-        client_kwargs = {}
-        local = True if config.get("DYNAMO_ENABLE_LOCAL", None) else False
-        if local:
-            client_kwargs["endpoint_url"] = "http://{}:{}".format(
-                config["DYNAMO_LOCAL_HOST"], config["DYNAMO_LOCAL_PORT"]
-            )
-
-        self._conn = self._session.resource("dynamodb", **client_kwargs)
-        if config.get("DYNAMO_TABLE_SUFFIX", None):
-            for table in TABLES:
-                table["TableName"] = table["TableName"] + config.get(
-                    "DYNAMO_TABLE_SUFFIX"
-                )
-            for n, tn in TN_LOOKUP.items():
-                TN_LOOKUP[n] = tn + config.get("DYNAMO_TABLE_SUFFIX")
+        self._conn = ddb.conn
 
     def start_new(self):
         """ When creating a report using interactive messages and photos
@@ -198,6 +229,12 @@ class Report:
         nr.reporter_slack_handle = who["name"]
         nr.reporter_slack_id = who["id"]
         nr.reporter = slack_api.user_to_name(who["id"])
+
+    @staticmethod
+    def _upd_time():
+        dt = datetime.utcnow()
+        dts = int(dt.timestamp() * 1000000)
+        return dt, dts
 
     """
     def create(self, rtype, who, channel, dinfo):
@@ -268,12 +305,14 @@ class Report:
             s3.delete(p.s3_url, rm.id)
         rm.photos = []
         table = self._conn.Table(TN_LOOKUP["reports"])
+        rm.update_datetime, rm.update_ts = Report._upd_time()
         table.put_item(Item=rm2ddb(rm))
 
     def update(self, rm: ReportModel):
         """ Update report.
         We just update the entire record because - that's easier.
         """
+        rm.update_datetime, rm.update_ts = Report._upd_time()
         table = self._conn.Table(TN_LOOKUP["reports"])
         table.put_item(Item=rm2ddb(rm))
 
@@ -288,20 +327,8 @@ class Report:
         if not rm.gps and lat and lon:
             rm.gps = "{},{}".format(lat, lon)
         table = self._conn.Table(TN_LOOKUP["reports"])
+        rm.update_datetime, rm.update_ts = Report._upd_time()
         table.put_item(Item=rm2ddb(rm))
-
-    def create_all(self):
-        tables_name_list = [table.name for table in self._conn.tables.all()]
-        for table in TABLES:
-            if table["TableName"] not in tables_name_list:
-                self._logger.info("Creating table {}".format(table["TableName"]))
-                self._conn.create_table(**table)
-
-    def destroy_all(self):
-        for t in TABLES:
-            table = self._conn.Table(t["TableName"])
-            self._logger.info("Deleting table {}".format(t["TableName"]))
-            table.delete()
 
     def _get_next_id(self, year):
         table = self._conn.Table(TN_LOOKUP["idgen"])
@@ -328,3 +355,40 @@ class Report:
         if re.match(r"(TR-|DR-)", rname, re.IGNORECASE):
             rname = rname[3:]
         return rname
+
+
+class DDBCache:
+    """
+    Cache things.
+    The record is simple - just ckey, cvalue
+    Value should be a json serializable value
+    """
+
+    def __init__(self, config, ddb: DDB):
+        self._config = config
+        self._logger = logging.getLogger(__name__)
+        self._conn = ddb.conn
+
+    def get(self, ckey):
+        table = self._conn.Table(TN_LOOKUP["cache"])
+        rv = table.query(KeyConditionExpression=Key("ckey").eq(ckey))
+        if len(rv["Items"]) != 1:
+            if len(rv["Items"]) > 1:
+                self._logger.error("Received multiple results for ckey {}".format(ckey))
+            return None
+        return json.loads(rv["Items"][0]["cvalue"])
+
+    def put(self, ckey, cvalue):
+        table = self._conn.Table(TN_LOOKUP["cache"])
+        item = {
+            "ckey": ckey,
+            "cvalue": json.dumps(cvalue),
+            "update_datetime": datetime.utcnow().isoformat(),
+        }
+        self._logger.info("Setting cache key {}".format(ckey))
+        table.put_item(Item=item)
+
+    def delete(self, ckey):
+        self._logger.info("Deleting ckey {} from cache".format(ckey))
+        table = self._conn.Table(TN_LOOKUP["cache"])
+        table.delete_item(Key={"ckey": ckey})

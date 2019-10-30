@@ -75,3 +75,4 @@ def test_mint(requests_mock):
         assert len(ans) == 2
         assert ans[0]["who"] == ["Chris Wagner"]
         assert ans[1]["time"] == "4:00pm"
+        assert len(ans[1]["who"]) == 8

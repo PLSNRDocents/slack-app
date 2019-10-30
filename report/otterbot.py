@@ -282,12 +282,44 @@ def talk_to_me(event_id, event):
                     )
                     pme(event, usage)
             elif re.match(r"at", whatsup[1], re.IGNORECASE):
-                where = None
+                # default to all locations for 'today'.
+                where = "all"
+                today = datetime.date.today()
+                which_day = today
+
+                tomorrow = today + datetime.timedelta(days=1)
+                want_tomorrow = False
                 if len(whatsup) > 2:
-                    where = whatsup[2]
-                if not plweb.cached_whoat(
-                    datetime.date.today().strftime("%Y%m%d"), where
-                ):
+                    # at <where> e.g. at info
+                    # at <where> tom(orrow)
+                    # at tom(orrow) - same as: at all tomorrow
+                    # at delete <key>
+                    if re.match(r"delete", whatsup[2], re.IGNORECASE):
+                        if len(whatsup) != 4:
+                            pme(event, "Usage: at delete key")
+                            return
+                        app.ddb_cache.delete(whatsup[3])
+                        return
+
+                    if re.match(r"tom", whatsup[2], re.IGNORECASE):
+                        # handles shortcut at tom(orrow)
+                        want_tomorrow = True
+                    else:
+                        where = whatsup[2]
+                        if len(whatsup) > 3 and re.match(
+                            r"tom", whatsup[3], re.IGNORECASE
+                        ):
+                            # tomorrow
+                            want_tomorrow = True
+                if want_tomorrow:
+                    if today.month != tomorrow.month:
+                        pme(event, "Tomorrow is looking hazy")
+                        return
+                    which_day = tomorrow
+
+                ckey = "{}:{}".format(which_day.strftime("%Y%m%d"), where)
+                atinfo = app.ddb_cache.get(ckey)
+                if not atinfo:
                     pme(
                         event,
                         [
@@ -297,8 +329,10 @@ def talk_to_me(event_id, event):
                             )
                         ],
                     )
-                atinfo = plweb.whoat(datetime.date.today().strftime("%Y%m%d"), where)
+                    atinfo = plweb.whoat(which_day.strftime("%Y%m%d"), where)
+                    app.ddb_cache.put(ckey, atinfo)
                 blocks = []
+                blocks.append(text_block(which_day.strftime("%b %d %Y")))
                 for loc, what in atinfo.items():
                     if what:
                         t = "*{}:*".format(loc)

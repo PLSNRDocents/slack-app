@@ -5,7 +5,6 @@ import os
 
 
 from bs4 import BeautifulSoup
-from cachetools import cached, keys, TTLCache
 import requests
 
 from exc import ParseError
@@ -15,8 +14,6 @@ VERBOSE = 0
 SESSION = requests.session()
 
 logger = logging.getLogger(__name__)
-
-whoat_cache = TTLCache(maxsize=128, ttl=60 * 60)
 
 
 IDX_TO_TIME = ["label", "9-11", "11-1", "1-3", "3-5"]
@@ -180,22 +177,36 @@ def at_activities(page, when):
         a["title"] = link.text
         rv = get_session().get("{url}{ep}".format(url=URL, ep=link.get("href")))
         rv.raise_for_status()
-        a["who"] = [_get_presenter(rv.text)]
+        a["who"] = _get_whoall(rv.text)
         ans.append(a)
     return ans
 
 
-def _get_presenter(page):
+def _get_whoall(page):
     hc = BeautifulSoup(page, features="html.parser")
+    whoall = []
+
+    # look for presenters
     pdiv = hc.find_all("div", class_="field--name-field-presented-by")
-    presenter = ""
     if pdiv:
-        presenter = pdiv[0].find("div", class_="field--item").text
-    return presenter
+        whoall.append(pdiv[0].find("div", class_="field--item").text)
+
+    # look for signups
+    tables = hc.find_all("table")
+    for table in tables:
+        try:
+            title = table.thead.tr.th.text
+            if "Signups" in title:
+                for row in table.find_all("td", class_="views-field-uid"):
+                    whoall.append(row.a.text)
+
+        except Exception:
+            pass
+
+    return whoall
 
 
-@cached(whoat_cache)
-def whoat(when, where=None):
+def whoat(when, where="all"):
     """
     Get info on who is where by querying calendars.
     If 'where' is None - try to find everything going on.
@@ -231,7 +242,7 @@ def whoat(when, where=None):
             "parser": at_activities,
         },
     }
-    if not where:
+    if where == "all":
         where = ["info", "whalers", "public", "gate", "other"]
     elif not isinstance(where, list):
         if where.startswith("info"):
@@ -268,7 +279,3 @@ def whoat(when, where=None):
         rv.raise_for_status()
         ans[info["title"]] = info["parser"](rv.text, when)
     return ans
-
-
-def cached_whoat(when, where=None):
-    return keys.hashkey(when, where) in whoat_cache
