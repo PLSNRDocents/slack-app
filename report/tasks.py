@@ -25,7 +25,7 @@ def _setup():
     # grab config
     config = {}
     mode = os.environ["PLSNRENV"]
-    logger.info("create_app: mode {}".format(mode))
+    logger.info("task setup: mode {}".format(mode))
 
     settings = getattr(importlib.import_module("settings"), mode + "Settings")
     for key in dir(settings):

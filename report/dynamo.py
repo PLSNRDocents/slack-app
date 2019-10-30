@@ -100,13 +100,14 @@ class DDB:
         self.conn = self.session.resource("dynamodb", **client_kwargs)
         if need_client:
             self.client = self.session.client("dynamodb", **client_kwargs)
-        if config.get("DYNAMO_TABLE_SUFFIX", None):
+        tsuffix = config.get("DYNAMO_TABLE_SUFFIX", None)
+        if tsuffix:
             for table in TABLES:
-                table["TableName"] = table["TableName"] + config.get(
-                    "DYNAMO_TABLE_SUFFIX"
-                )
+                if not table["TableName"].endswith(tsuffix):
+                    table["TableName"] = table["TableName"] + tsuffix
             for n, tn in TN_LOOKUP.items():
-                TN_LOOKUP[n] = tn + config.get("DYNAMO_TABLE_SUFFIX")
+                if not TN_LOOKUP[n].endswith(tsuffix):
+                    TN_LOOKUP[n] = tn + tsuffix
 
     def create_all(self):
         tables_name_list = [table.name for table in self.conn.tables.all()]
@@ -385,7 +386,9 @@ class DDBCache:
             "cvalue": json.dumps(cvalue),
             "update_datetime": datetime.utcnow().isoformat(),
         }
-        self._logger.info("Setting cache key {}".format(ckey))
+        self._logger.info(
+            "Setting cache key {} to table {}".format(ckey, TN_LOOKUP["cache"])
+        )
         table.put_item(Item=item)
 
     def delete(self, ckey):
