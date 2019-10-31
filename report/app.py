@@ -16,10 +16,6 @@ import s3
 REQUIRED_CONFIG = ["SIGNING_SECRET", "BOT_TOKEN"]
 
 
-logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FMT, level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
 def get_action_values(info):
     return [a.get("value", None) for a in info["actions"]]
 
@@ -27,6 +23,8 @@ def get_action_values(info):
 def create_app():
     app = Flask(__name__)
 
+    logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FMT, level=logging.INFO)
+    logger = logging.getLogger(__name__)
     logging.getLogger("botocore").setLevel(logging.INFO)
     logging.getLogger("boto3").setLevel(logging.INFO)
     logging.getLogger("urllib3").setLevel(logging.INFO)

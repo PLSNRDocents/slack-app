@@ -26,9 +26,11 @@ def _chk_error(rv, endpoint):
     return jresponse
 
 
-def post(endpoint, payload):
+def post(endpoint, payload, auth=None):
+    if not auth:
+        auth = os.environ["BOT_TOKEN"]
     headers = {
-        "Authorization": "Bearer {}".format(os.environ["BOT_TOKEN"]),
+        "Authorization": "Bearer {}".format(auth),
         "Content-Type": "application/json;charset=utf-8",
         "Accept": "application/json",
     }
@@ -79,6 +81,17 @@ def post_message(channel, user, payload):
     content.update(channel=channel, user=user, as_user=True)
     jresponse = post("chat.postEphemeral", content)
     return jresponse["message_ts"]
+
+
+def delete_message(channel, ts):
+    # This seems to fail for users other than me :-)
+    payload = {"channel": channel, "ts": ts, "as_user": True}
+    try:
+        post("chat.delete", payload, auth=os.environ["APP_TOKEN"])
+    except SlackApiError as exc:
+        logger.warning(
+            "Delete message {} channel {} failed: {}".format(ts, channel, exc)
+        )
 
 
 @cachetools.func.ttl_cache(600, ttl=60 * 60 * 24)

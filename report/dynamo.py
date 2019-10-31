@@ -8,12 +8,6 @@ This has the advantage of:
 2) DDB has a VPC endpoint so our lambda can access it while running in the AWS
    lambda VPC - so we don't need a NAT gateway which is costing $$$
 
-However - we are going to follow some worst-practices:
-
-1) Use a constant PK/Hash Key - we will never have alot of records and we want to
-   easily query for all recent reports (with particular status)
-2) We want a user-friendly unique id - e.g. TR-19-1 (2019, first report). We create a
-   secondary index to we can 'get_item' based on it.
 """
 
 from dataclasses import asdict, dataclass, field
@@ -45,18 +39,18 @@ TABLES = [
     {
         "TableName": "reports",
         "AttributeDefinitions": [
-            dict(AttributeName="pk", AttributeType="S"),
+            dict(AttributeName="allreports", AttributeType="S"),
             dict(AttributeName="update_ts", AttributeType="N"),
             dict(AttributeName="id", AttributeType="S"),
         ],
-        "KeySchema": [
-            dict(AttributeName="pk", KeyType="HASH"),
-            dict(AttributeName="update_ts", KeyType="RANGE"),
-        ],
+        "KeySchema": [dict(AttributeName="id", KeyType="HASH")],
         "GlobalSecondaryIndexes": [
             dict(
-                IndexName="reportid",
-                KeySchema=[dict(AttributeName="id", KeyType="HASH")],
+                IndexName="byupdate",
+                KeySchema=[
+                    dict(AttributeName="allreports", KeyType="HASH"),
+                    dict(AttributeName="update_ts", KeyType="RANGE"),
+                ],
                 Projection=dict(ProjectionType="ALL"),
                 ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
             )
@@ -123,7 +117,7 @@ class DDB:
             table.delete()
 
 
-PARTITION_HASH = "2xxx"
+ALL_REPORTS = "2xxx"
 
 
 @dataclass
@@ -135,10 +129,10 @@ class PhotoModel:
 
 @dataclass
 class ReportModel:
-    pk: str  # Partition Key
+    allreports: str  # Constant for sorting
     create_ts: int  # Creation timestamp
     update_ts: int  # last update timestamp
-    id: str  # readable unique id...
+    id: str  # readable unique id (primary key)
 
     create_datetime: datetime
     update_datetime: datetime
@@ -202,7 +196,7 @@ class Report:
         dt = datetime.utcnow()
         dts = int(dt.timestamp() * 1000000)
         nr = ReportModel(
-            pk=PARTITION_HASH,
+            allreports=ALL_REPORTS,
             id="{}-{}".format(str(dt.year)[2:], self._get_next_id(dt.year)),
             type="Unknown",
             status=STATUS_PLACEHOLDER,
@@ -256,7 +250,9 @@ class Report:
     def fetch_all(self, limit=10, active=True) -> List[ReportModel]:
         table = self._conn.Table(TN_LOOKUP["reports"])
         qopts = dict(
-            KeyConditionExpression=Key("pk").eq("2xxx"), ScanIndexForward=False
+            KeyConditionExpression=Key("allreports").eq(ALL_REPORTS),
+            IndexName="byupdate",
+            ScanIndexForward=False,
         )
         if limit:
             qopts["Limit"] = limit
@@ -281,7 +277,7 @@ class Report:
     def _get(self, rid):
         """ Fetch based on unique id. """
         table = self._conn.Table(TN_LOOKUP["reports"])
-        rv = table.query(KeyConditionExpression=Key("id").eq(rid), IndexName="reportid")
+        rv = table.query(KeyConditionExpression=Key("id").eq(rid))
         if len(rv["Items"]) != 1:
             if len(rv["Items"]) > 1:
                 self._logger.error("Received multiple results for rid {}".format(rid))
@@ -297,7 +293,7 @@ class Report:
             s3.delete(p.s3_url, rm.id)
 
         table = self._conn.Table(TN_LOOKUP["reports"])
-        table.delete_item(Key=dict(pk=rm.pk, update_ts=rm.update_ts))
+        table.delete_item(Key=dict(id=rm.id))
 
     def delete_photos(self, rm: ReportModel, s3):
         # delete all photos but leave report alone

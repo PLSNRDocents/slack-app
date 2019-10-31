@@ -17,7 +17,7 @@
         "async_resources": false,
         "events": [{
             "function": "tasks.prime_cache",
-            "expression": "rate(1 hour)"
+            "expression": "rate(2 hours)"
         }]
     }
 }

@@ -23,7 +23,7 @@ from constants import (
 
 import plweb
 from quotes import QUOTES
-from slack_api import get_file_info, post_message, user_to_name
+from slack_api import get_file_info, delete_message, post_message, user_to_name
 
 
 logger = logging.getLogger(__name__)
@@ -49,10 +49,14 @@ def talk_to_me(event_id, event):
     try:
         app = asyncev.wapp
         with app.app_context():
-            logger.info("Event id {} event_ts {}".format(event_id, event["event_ts"]))
             # remove all extraneous white space.
             whatsup = " ".join(event["text"].split()).split()
             # First word is the @mention
+            logger.info(
+                "Event id {} event_ts {} user {} text {}".format(
+                    event_id, event["event_ts"], user_to_name(event["user"]), whatsup
+                )
+            )
 
             if len(whatsup) < 2:
                 # This can happen if on iphone one 'attaches' an existing file
@@ -86,6 +90,7 @@ def talk_to_me(event_id, event):
                 if len(whatsup) > 2 and whatsup[2].startswith("any"):
                     active_only = False
                 blocks = []
+                blocks.append(divider_block())
                 blocks.append(text_block("*Current Reports:*"))
 
                 reports = app.report.fetch_all(active=active_only)
@@ -147,6 +152,7 @@ def talk_to_me(event_id, event):
                         else:
                             blocks.append(text_block(text))
                 post_message(event["channel"], event["user"], blocks)
+                delete_message(event["channel"], event["ts"])
             elif re.match(r"new", whatsup[1], re.IGNORECASE):
                 try:
                     what = whatsup[2]
@@ -332,6 +338,7 @@ def talk_to_me(event_id, event):
                     atinfo = plweb.whoat(which_day.strftime("%Y%m%d"), where)
                     app.ddb_cache.put(ckey, atinfo)
                 blocks = []
+                blocks.append(divider_block())
                 blocks.append(text_block(which_day.strftime("%b %d %Y")))
                 for loc, what in atinfo.items():
                     if what:
@@ -341,13 +348,15 @@ def talk_to_me(event_id, event):
                             if "title" in i:
                                 t += " - {}".format(i["title"])
                         blocks.append(text_block(t))
+
+                delete_message(event["channel"], event["ts"])
                 pme(event, blocks)
             else:
                 blocks = [
                     text_block(
                         "Sorry didn't hear you - I was sleeping.\nYou can ask for:\n"
                         "*reports* - Show most recent trail/disturbance reports.\n"
-                        "*new* - Create a report with photos.\n"
+                        "*new* - Create a report with optional photos.\n"
                         "_report_id_ - Modify/Delete/Add photos"
                         " to an existing report.\n"
                         "*at* - who's doing what at the Reserve today.\n"
@@ -360,6 +369,7 @@ def talk_to_me(event_id, event):
                         "https://media.giphy.com/media/drxyCDMT7kkvu1FWNZ/giphy.gif",
                     )
                 )
+                delete_message(event["channel"], event["ts"])
                 pme(event, blocks)
     except Exception as exc:
         logger.error(
