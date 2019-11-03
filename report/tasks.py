@@ -8,6 +8,7 @@ Locally - python -c "import tasks; tasks.xxx"
 """
 
 import datetime
+from dateutil import tz
 import importlib
 import logging
 import os
@@ -46,12 +47,11 @@ def prime_cache():
     ddb = dynamo.DDB(config)
     ddb_cache = dynamo.DDBCache(config, ddb)
 
-    # plweb actually can only handle current month.
-    today = datetime.date.today()
-    which_days = [today.strftime("%Y%m%d")]
-    tomorrow = today + datetime.timedelta(days=1)
-    if tomorrow.month == today.month:
-        which_days.append(tomorrow.strftime("%Y%m%d"))
+    today = datetime.datetime.now(tz.tzutc())
+    which_days = [
+        today.strftime("%Y%m%d"),
+        (today + datetime.timedelta(days=1)).strftime("%Y%m%d"),
+    ]
 
     where = "all"
     for day in which_days:
@@ -65,7 +65,7 @@ def backup():
     logger.info("backup: init db")
     ddb = dynamo.DDB(config, need_client=True)
 
-    dt = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    dt = datetime.datetime.now(tz.tzutc()).strftime("%Y%m%d%H%M%S")
     for table in dynamo.TN_LOOKUP.values():
         rv = ddb.client.create_backup(TableName=table, BackupName=table + dt)
         logger.info("Backup response for table {}: {}".format(table, rv))

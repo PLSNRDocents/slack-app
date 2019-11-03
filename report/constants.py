@@ -36,7 +36,7 @@ TRAIL_VALUE_2_DESC = {
 ISSUES_2_DESC = {
     "po": "Poison Oak",
     "sign": "Sign Missing/Broken",
-    "ca": "Broken Cable",
+    "cable": "Broken Cable",
     "tree": "Tree/obstruction",
     "step": "Broken Steps",
     "ot": "Other",
@@ -56,6 +56,7 @@ ISSUES_2_DESC = {
     "air": "Airplane flying low",
     "fish": "Fishing boat with deployed lines, nets or poles within the Reserve",
     "Unk": "Unknown",
+    "trash": "Trash",
 }
 
 

@@ -5,6 +5,7 @@ Handle our chat-bot.
 """
 
 import datetime
+from dateutil import tz
 import logging
 import json
 from random import randint
@@ -101,12 +102,7 @@ def talk_to_me(event_id, event):
                         if r.gps:
                             gps = "GPS {}".format(r.gps)
                         dt = "<!date^{}^{{date_short_pretty}} {{time}}|{}>".format(
-                            int(
-                                (
-                                    r.create_datetime - datetime.datetime(1970, 1, 1)
-                                ).total_seconds()
-                            ),
-                            r.create_datetime,
+                            int(r.create_datetime.timestamp()), r.create_datetime
                         )
                         url = None
                         if len(r.photos) > 0:
@@ -176,13 +172,16 @@ def talk_to_me(event_id, event):
                 # start an interactive message.
                 # Seems safe enough to do this now - it takes a while to save files
                 # and that confuses users.
-                b = select_block(
-                    nr.id,
-                    "What type of report",
-                    "Select an item",
-                    [("Trail", TYPE_TRAIL), ("Disturbance", TYPE_DISTURBANCE)],
+                b = []
+                b.append(text_block("*Please select report type*"))
+                b.append(divider_block())
+                b.append(
+                    buttons_block(
+                        nr.id,
+                        [("Trail", TYPE_TRAIL), ("Disturbance", TYPE_DISTURBANCE)],
+                    )
                 )
-                pme(event, [b])
+                pme(event, b)
 
                 # grab photos
                 if "files" in event:
@@ -290,7 +289,7 @@ def talk_to_me(event_id, event):
             elif re.match(r"at", whatsup[1], re.IGNORECASE):
                 # default to all locations for 'today'.
                 where = "all"
-                today = datetime.date.today()
+                today = datetime.datetime.now(tz.tzutc())
                 which_day = today
 
                 tomorrow = today + datetime.timedelta(days=1)
@@ -318,12 +317,16 @@ def talk_to_me(event_id, event):
                             # tomorrow
                             want_tomorrow = True
                 if want_tomorrow:
-                    if today.month != tomorrow.month:
-                        pme(event, "Tomorrow is looking hazy")
-                        return
                     which_day = tomorrow
 
-                ckey = "{}:{}".format(which_day.strftime("%Y%m%d"), where)
+                # Look for day based on our location (America/Los_Angeles)
+                lday = which_day.astimezone(tz=tz.gettz("America/Los_Angeles"))
+                ckey = "{}:{}".format(lday.strftime("%Y%m%d"), where)
+                logger.info(
+                    "Looking for at info for Pacific TZ: {} Key: {}".format(
+                        lday.isoformat(), ckey
+                    )
+                )
                 atinfo = app.ddb_cache.get(ckey)
                 if not atinfo:
                     pme(
@@ -335,11 +338,11 @@ def talk_to_me(event_id, event):
                             )
                         ],
                     )
-                    atinfo = plweb.whoat(which_day.strftime("%Y%m%d"), where)
+                    atinfo = plweb.whoat(lday.strftime("%Y%m%d"), where)
                     app.ddb_cache.put(ckey, atinfo)
                 blocks = []
                 blocks.append(divider_block())
-                blocks.append(text_block(which_day.strftime("%b %d %Y")))
+                blocks.append(text_block(lday.strftime("%b %d %Y")))
                 for loc, what in atinfo.items():
                     if what:
                         t = "*{}:*".format(loc)
@@ -412,6 +415,22 @@ def select_block(block_id, text, place_text, options: list):
             "options": ops,
         },
     }
+    return b
+
+
+def buttons_block(block_id, options: list):
+    # Create a actions button block.
+    # options should be a list of tuples (text, value)
+    elements = []
+    for o in options:
+        elements.append(
+            {
+                "type": "button",
+                "value": o[1],
+                "text": {"type": "plain_text", "text": o[0]},
+            }
+        )
+    b = {"type": "actions", "block_id": str(block_id), "elements": elements}
     return b
 
 

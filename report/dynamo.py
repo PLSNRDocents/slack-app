@@ -12,6 +12,7 @@ This has the advantage of:
 
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from dateutil import tz
 import decimal
 import logging
 import json
@@ -193,7 +194,7 @@ class Report:
         """ When creating a report using interactive messages and photos
         were uploaded at the beginning.
         """
-        dt = datetime.utcnow()
+        dt = datetime.now(tz.tzutc())
         dts = int(dt.timestamp() * 1000000)
         nr = ReportModel(
             allreports=ALL_REPORTS,
@@ -227,7 +228,7 @@ class Report:
 
     @staticmethod
     def _upd_time():
-        dt = datetime.utcnow()
+        dt = datetime.now(tz.tzutc())
         dts = int(dt.timestamp() * 1000000)
         return dt, dts
 
@@ -319,7 +320,7 @@ class Report:
         We just update the entire record because - that's easier.
         """
         s3_finfo, lat, lon = image.add_photo(s3, finfo, rm.id)
-        pm = PhotoModel(finfo["id"], s3_finfo["path"], datetime.utcnow())
+        pm = PhotoModel(finfo["id"], s3_finfo["path"], datetime.now(tz.tzutc()))
         rm.photos.append(pm)
         if not rm.gps and lat and lon:
             rm.gps = "{},{}".format(lat, lon)
@@ -380,7 +381,7 @@ class DDBCache:
         item = {
             "ckey": ckey,
             "cvalue": json.dumps(cvalue),
-            "update_datetime": datetime.utcnow().isoformat(),
+            "update_datetime": datetime.now(tz.tzutc()).isoformat(),
         }
         self._logger.info(
             "Setting cache key {} to table {}".format(ckey, TN_LOOKUP["cache"])

@@ -172,13 +172,15 @@ def at_activities(page, when):
     for w in walks:
         a = {}
         info = w.find_all("div")
-        a["time"] = _gettime(info[1])
         link = info[0].contents[0]
-        a["title"] = link.text
         rv = get_session().get("{url}{ep}".format(url=URL, ep=link.get("href")))
         rv.raise_for_status()
-        a["who"] = _get_whoall(rv.text)
-        ans.append(a)
+        signups = _get_whoall(rv.text)
+        if signups:
+            a["time"] = _gettime(info[1])
+            a["title"] = link.text
+            a["who"] = signups
+            ans.append(a)
     return ans
 
 
@@ -219,26 +221,31 @@ def whoat(when, where="all"):
         "info": {
             "title": "Info-Station",
             "cal_url": "schedule/info-station",
+            "has_month": False,
             "parser": at_station,
         },
         "whalers": {
             "title": "Whaler's Cabin",
             "cal_url": "schedule/whalers-cabin",
+            "has_month": False,
             "parser": at_station,
         },
         "public": {
             "title": "Public Walks",
             "cal_url": "schedule/public-walks/month",
+            "has_month": True,
             "parser": at_pw,
         },
         "gate": {
             "title": "Gate Greet/Scoping/Pup",
             "cal_url": "schedule/interpretive-duty/month",
+            "has_month": True,
             "parser": at_pw,
         },
         "other": {
             "title": "Other Activities",
             "cal_url": "community/activities/month",
+            "has_month": True,
             "parser": at_activities,
         },
     }
@@ -269,13 +276,16 @@ def whoat(when, where="all"):
     ans = {}
     for w in where:
         info = locations[w]
-        logger.info("Fetching {} calendar".format(info["cal_url"]))
-        rv = get_session().get("{url}/{ep}".format(url=URL, ep=info["cal_url"]))
+        cal_url = info["cal_url"]
+        if info["has_month"]:
+            cal_url += "/{}".format(when[0:6])
+        logger.info("Fetching {} calendar".format(cal_url))
+        rv = get_session().get("{url}/{ep}".format(url=URL, ep=cal_url))
         if rv.status_code == 403:
             # need to log in.
             logger.info("Logging in to PLSNR web site")
             login(os.environ["PLSNR_USERNAME"], os.environ["PLSNR_PASSWORD"])
-            rv = get_session().get("{url}/{ep}".format(url=URL, ep=info["cal_url"]))
+            rv = get_session().get("{url}/{ep}".format(url=URL, ep=cal_url))
         rv.raise_for_status()
         ans[info["title"]] = info["parser"](rv.text, when)
     return ans

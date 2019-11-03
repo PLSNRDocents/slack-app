@@ -71,7 +71,7 @@ def submit():
         # trigger_id, response_url
         rid = rjson["actions"][0]["block_id"]
         state = json.dumps({"ru": rjson["response_url"], "rid": rid})
-        value = rjson["actions"][0]["selected_option"]["value"]
+        value = rjson["actions"][0]["value"]
         if value == "trail":
             open_trail_report_dialogue(rjson["trigger_id"], state)
         else:
@@ -181,7 +181,7 @@ def open_trail_report_dialogue(trigger, state):
     trail_options = []
     for n, d in TRAIL_VALUE_2_DESC.items():
         trail_options.append(dict(label=d, value=n))
-    valid_trail_issues = ["po", "sign", "ca", "tree", "step", "ot"]
+    valid_trail_issues = ["po", "sign", "cable", "tree", "step", "trash", "ot"]
     trail_issues = []
     for n in valid_trail_issues:
         trail_issues.append(dict(label=ISSUES_2_DESC[n], value=n))
