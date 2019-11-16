@@ -9,6 +9,7 @@ import slack
 import asyncev
 from asyncev import run_async
 from constants import TRAIL_VALUE_2_DESC, TYPE_TRAIL, TYPE_DISTURBANCE, ISSUES_2_DESC
+import exc
 from otterbot import talk_to_me
 from slack_api import get_file_info, post, post_message, send_update
 
@@ -72,10 +73,13 @@ def submit():
         rid = rjson["actions"][0]["block_id"]
         state = json.dumps({"ru": rjson["response_url"], "rid": rid})
         value = rjson["actions"][0]["value"]
-        if value == "trail":
-            open_trail_report_dialogue(rjson["trigger_id"], state)
-        else:
-            open_disturbance_report_dialogue(rjson["trigger_id"], state)
+        run_async(
+            current_app.config["EV_MODE"],
+            start_report,
+            value,
+            rjson["trigger_id"],
+            state,
+        )
         return "", 200
 
     logger.error("Unhandled type {}: {}".format(rjson["type"], rjson))
@@ -93,18 +97,28 @@ def events():
         abort(403)
 
     payload = request.json
+    event_id = payload["event_id"]
+
+    # Check for retry. These are really annoying so we simple ignore them!
+    retry_num = request.headers.get("X-Slack-Retry-Num", 0)
+    retry_why = request.headers.get("X-Slack-Retry-Reason", "")
+    if retry_num:
+        logger.warning(
+            "Ignoring retry event Id {} try {} reason {}".format(
+                event_id, retry_num, retry_why
+            )
+        )
+        return "", 200
 
     if payload["type"] == "url_verification":
         return dict(challenge=payload["challenge"])
     elif payload["type"] == "event_callback":
         event = payload["event"]
-        logger.info("Event id {} {}".format(payload["event_id"], event))
+        logger.info("Event id {} {}".format(event_id, event))
 
         if event["type"] == "app_mention":
             # let's chat
-            run_async(
-                current_app.config["EV_MODE"], talk_to_me, payload["event_id"], event
-            )
+            run_async(current_app.config["EV_MODE"], talk_to_me, event_id, event)
         elif event["type"] == "file_created" or event["type"] == "file_shared":
             run_async(current_app.config["EV_MODE"], handle_file, event)
         elif event["type"] == "message":
@@ -116,12 +130,7 @@ def events():
                 # Treat like a mention - seems like this can only be DMs.
                 # hack - make it look same as a @mention.
                 event["text"] = "DM " + event["text"]
-                run_async(
-                    current_app.config["EV_MODE"],
-                    talk_to_me,
-                    payload["event_id"],
-                    event,
-                )
+                run_async(current_app.config["EV_MODE"], talk_to_me, event_id, event)
         else:
             logger.info("Ignored Event type: {}".format(event["type"]))
 
@@ -177,6 +186,16 @@ def handle_file(event):
     return {}
 
 
+def start_report(ttype, trigger, state):
+    logger.info(
+        "Opening dialog type {} trigger_id {} state {}".format(ttype, trigger, state)
+    )
+    if ttype == "trail":
+        open_trail_report_dialogue(trigger, state)
+    else:
+        open_disturbance_report_dialogue(trigger, state)
+
+
 def open_trail_report_dialogue(trigger, state):
     trail_options = []
     for n, d in TRAIL_VALUE_2_DESC.items():
@@ -228,7 +247,13 @@ def open_trail_report_dialogue(trigger, state):
         ],
     }
 
-    post("dialog.open", dict(trigger_id=trigger, dialog=payload))
+    try:
+        post("dialog.open", dict(trigger_id=trigger, dialog=payload))
+    except exc.SlackApiError as ex:
+        if "trigger_expired" in repr(ex):
+            logger.warning("Received trigger expired - ignoring")
+        else:
+            raise
 
 
 def open_disturbance_report_dialogue(trigger, state):
@@ -299,7 +324,13 @@ def open_disturbance_report_dialogue(trigger, state):
         ],
     }
 
-    post("dialog.open", dict(trigger_id=trigger, dialog=payload))
+    try:
+        post("dialog.open", dict(trigger_id=trigger, dialog=payload))
+    except exc.SlackApiError as ex:
+        if "trigger_expired" in repr(ex):
+            logger.warning("Received trigger expired - ignoring")
+        else:
+            raise
 
 
 def handle_report_submit(rjson):

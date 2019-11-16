@@ -11,7 +11,7 @@ Pillow~=6.1.0
 python-dateutil
 # SQLAlchemy==1.3.8
 # sqlalchemy-utils
-# This is needed for lamda to get correctly compiled (for linux) version.
+# This is needed for lambda to get correctly compiled (for linux) version.
 # psycopg2-binary==2.8.3
 requests
 requests-mock

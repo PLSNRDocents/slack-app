@@ -100,7 +100,16 @@ def talk_to_me(event_id, event):
                         blocks.append(divider_block())
                         gps = ""
                         if r.gps:
-                            gps = "GPS {}".format(r.gps)
+                            dlat, dlng = convert_gps(r.gps)
+                            if dlat and dlng:
+                                gps = (
+                                    "<https://www.google.com/maps/search/?"
+                                    "api=1&query={},{}|GPS {}>".format(
+                                        dlat, dlng, r.gps
+                                    )
+                                )
+                            else:
+                                gps = "GPS {}".format(r.gps)
                         dt = "<!date^{}^{{date_short_pretty}} {{time}}|{}>".format(
                             int(r.create_datetime.timestamp()), r.create_datetime
                         )
@@ -119,7 +128,7 @@ def talk_to_me(event_id, event):
                         text = (
                             "[{}] {date} _{who}_ {status} {type}:"
                             "\n*{issue}* {verb} _{location}_ {gps}"
-                            " {photo_link}".format(
+                            "  {photo_link}".format(
                                 app.report.id_to_name(r),
                                 date=dt,
                                 who=r.reporter
@@ -461,3 +470,27 @@ def divider_block():
 
 def pme(event, text):
     post_message(event["channel"], event["user"], text)
+
+
+def convert_gps(gps):
+    """ Parse iphone compass app GPS coordinates: '36°33′0″ N  121°55′28″ W'
+    """
+    # 2 spaces between lat/lng
+    try:
+        lat, lng = gps.split("  ")
+        dlat = dms_to_dd(lat)
+        dlng = dms_to_dd(lng)
+        return dlat, dlng
+    except Exception:
+        return None, None
+
+
+def dms_to_dd(coords):
+    """ iphone uses some funky punctuation """
+    coords = " ".join(coords.split())
+    deg, minutes, seconds, direction = re.split(
+        "[°'\"\N{PRIME}\N{DOUBLE PRIME}]", coords
+    )
+    return (float(deg) + float(minutes) / 60 + float(seconds) / (60 * 60)) * (
+        -1 if direction.strip() in ["W", "S"] else 1
+    )
