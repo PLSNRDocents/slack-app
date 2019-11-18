@@ -97,7 +97,7 @@ def events():
         abort(403)
 
     payload = request.json
-    event_id = payload["event_id"]
+    event_id = payload.get("event_id", "")
 
     # Check for retry. These are really annoying so we simple ignore them!
     retry_num = request.headers.get("X-Slack-Retry-Num", 0)
