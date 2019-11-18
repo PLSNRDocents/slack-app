@@ -52,7 +52,7 @@ def create_app():
         app.ddb_cache = dynamo.DDBCache(app.config, app.ddb)
     else:
         from dbmodel import db
-        from report import Report
+        from sql import Report
 
         db.init_app(app)
         app.report = Report(db, app)
