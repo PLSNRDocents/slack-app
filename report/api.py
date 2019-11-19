@@ -6,15 +6,18 @@ import json
 from flask import Blueprint, abort, current_app, jsonify, request
 import slack
 
-import asyncev
 from asyncev import run_async
-from constants import TRAIL_VALUE_2_DESC, TYPE_TRAIL, TYPE_DISTURBANCE, ISSUES_2_DESC
-import exc
 from otterbot import talk_to_me
-from slack_api import get_file_info, post, post_message, send_update
+from report import (
+    open_disturbance_report_modal,
+    open_trail_report_modal,
+    handle_report_cancel_modal,
+    handle_report_submit_modal,
+)
+from slack_api import get_file_info, get_bot_user_id
 
 api = Blueprint("api", __name__, url_prefix="/")
-logger = logging.getLogger("report")
+logger = logging.getLogger("api")
 
 
 @api.route("/report", methods=["GET", "POST"])
@@ -29,20 +32,9 @@ def top():
         abort(403)
 
     # remove all extraneous white space and put into list.
-    rrequest = " ".join(request.form["text"].split()).split()
-    if rrequest[0].startswith("t"):
-        open_trail_report_dialogue(request.form["trigger_id"], "")
-        return "", 200
-    elif rrequest[0].startswith("d"):
-        open_disturbance_report_dialogue(request.form["trigger_id"], "")
-        return "", 200
+    # rrequest = " ".join(request.form["text"].split()).split()
     return (
-        jsonify(
-            {
-                "response_type": "ephemeral",
-                "text": "Please specify a type of report t(rail) or d(isturbance)",
-            }
-        ),
+        jsonify({"response_type": "ephemeral", "text": "Slash commands not supported"}),
         200,
     )
 
@@ -59,20 +51,20 @@ def submit():
         abort(403)
 
     rjson = json.loads(request.form["payload"])
-    if rjson["type"] == "dialog_submission":
-        run_async(current_app.config["EV_MODE"], handle_report_submit, rjson)
+    if rjson["type"] == "view_submission":
+        run_async(current_app.config["EV_MODE"], handle_report_submit_modal, rjson)
         return "", 200
-    elif rjson["type"] == "dialog_cancellation":
-        # Delete placeholder report
-        run_async(current_app.config["EV_MODE"], handle_report_cancel, rjson)
+    elif rjson["type"] == "view_closed":
+        run_async(current_app.config["EV_MODE"], handle_report_cancel_modal, rjson)
         return "", 200
 
     elif rjson["type"] == "block_actions":
         # ts = rjson["container"]["message_ts"]
         # trigger_id, response_url
         rid = rjson["actions"][0]["block_id"]
-        state = json.dumps({"ru": rjson["response_url"], "rid": rid})
         value = rjson["actions"][0]["value"]
+        state = json.dumps({"rid": rid})
+
         run_async(
             current_app.config["EV_MODE"],
             start_report,
@@ -126,6 +118,8 @@ def events():
             if subtype and subtype != "file_share":
                 # ignore
                 logger.info("Ignoring message subtype {}".format(subtype))
+            elif event["user"] == get_bot_user_id():
+                logger.info("Ignoring message - its from me!")
             else:
                 # Treat like a mention - seems like this can only be DMs.
                 # hack - make it look same as a @mention.
@@ -176,7 +170,7 @@ def handle_file(event):
             # TODO - but we need to ive feedback - probably need to just check channel?
             return "", 200
         else:
-            post_message(
+            post_ephemeral_message(
                 event["channel_id"],
                 event["user_id"],
                 "Retrieving file and grabbing GPS info.. thanks.",
@@ -188,209 +182,9 @@ def handle_file(event):
 
 def start_report(ttype, trigger, state):
     logger.info(
-        "Opening dialog type {} trigger_id {} state {}".format(ttype, trigger, state)
+        "Opening modal type {} trigger_id {} state {}".format(ttype, trigger, state)
     )
     if ttype == "trail":
-        open_trail_report_dialogue(trigger, state)
+        open_trail_report_modal(trigger, state)
     else:
-        open_disturbance_report_dialogue(trigger, state)
-
-
-def open_trail_report_dialogue(trigger, state):
-    trail_options = []
-    for n, d in TRAIL_VALUE_2_DESC.items():
-        trail_options.append(dict(label=d, value=n))
-    valid_trail_issues = ["po", "sign", "cable", "tree", "step", "trash", "ot"]
-    trail_issues = []
-    for n in valid_trail_issues:
-        trail_issues.append(dict(label=ISSUES_2_DESC[n], value=n))
-    payload = {
-        "callback_id": TYPE_TRAIL,
-        "title": "Trail Report",
-        "submit_label": "Submit",
-        "notify_on_cancel": True,
-        "state": state,
-        "elements": [
-            {
-                "label": "Issue",
-                "type": "select",
-                "name": "issues",
-                "options": trail_issues,
-            },
-            {
-                "label": "Trail/Location",
-                "type": "select",
-                "name": "location",
-                "options": trail_options,
-            },
-            {
-                "label": "Nearest Cross Trail",
-                "type": "select",
-                "name": "cross",
-                "optional": True,
-                "options": trail_options,
-            },
-            {
-                "label": "GPS Location",
-                "type": "text",
-                "name": "gps",
-                "hint": "Use Compass app (ios) to grab current coordinates",
-                "optional": True,
-            },
-            {
-                "label": "Details",
-                "type": "textarea",
-                "name": "details",
-                "hint": "Describe details.",
-                "optional": True,
-            },
-        ],
-    }
-
-    try:
-        post("dialog.open", dict(trigger_id=trigger, dialog=payload))
-    except exc.SlackApiError as ex:
-        if "trigger_expired" in repr(ex):
-            logger.warning("Received trigger expired - ignoring")
-        else:
-            raise
-
-
-def open_disturbance_report_dialogue(trigger, state):
-    trail_options = []
-    for n, d in TRAIL_VALUE_2_DESC.items():
-        trail_options.append(dict(label=d, value=n))
-    valid_dist_issues = [
-        "off",
-        "eat",
-        "pet",
-        "take",
-        "tide",
-        "climb",
-        "evil",
-        "pin",
-        "ott",
-        "bird",
-        "jump",
-        "bike",
-        "drone",
-        "air",
-        "fish",
-        "ot",
-    ]
-    disturbance_issues = []
-    for n in valid_dist_issues:
-        disturbance_issues.append(dict(label=ISSUES_2_DESC[n], value=n))
-    payload = {
-        "callback_id": TYPE_DISTURBANCE,
-        "title": "Disturbance Report",
-        "submit_label": "Submit",
-        "notify_on_cancel": True,
-        "state": state,
-        "elements": [
-            {
-                "label": "Disturbance",
-                "type": "select",
-                "name": "issues",
-                "options": disturbance_issues,
-            },
-            {
-                "label": "Trail/Location",
-                "type": "select",
-                "name": "location",
-                "options": trail_options,
-            },
-            {
-                "label": "Nearest Cross Trail",
-                "type": "select",
-                "name": "cross",
-                "optional": True,
-                "options": trail_options,
-            },
-            {
-                "label": "GPS Location",
-                "type": "text",
-                "name": "gps",
-                "hint": "Use Compass app (ios) to grab current coordinates",
-                "optional": True,
-            },
-            {
-                "label": "Details",
-                "type": "textarea",
-                "name": "details",
-                "hint": "Describe details.",
-                "optional": True,
-            },
-        ],
-    }
-
-    try:
-        post("dialog.open", dict(trigger_id=trigger, dialog=payload))
-    except exc.SlackApiError as ex:
-        if "trigger_expired" in repr(ex):
-            logger.warning("Received trigger expired - ignoring")
-        else:
-            raise
-
-
-def handle_report_submit(rjson):
-    # Called on dialog submission.
-    app = asyncev.wapp
-    with app.app_context():
-        if rjson["state"]:
-            # created via start_new / @xx new report
-            # state is json containing report id and response url
-            state = json.loads(rjson["state"])
-            nr = app.report.get(state["rid"])
-            if not nr:
-                # hmm - what happened to the report
-                post_message(
-                    rjson["channel"]["id"],
-                    rjson["user"]["id"],
-                    "Couldn't find report {}".format(state["rid"]),
-                )
-                return
-            logger.info("Finish report {}".format(nr.id))
-            nr = app.report.complete(
-                nr,
-                rjson["callback_id"],
-                rjson["user"],
-                rjson["channel"],
-                rjson["submission"],
-            )
-            # inform user - and replace initial message
-            send_update(
-                state["ru"],
-                "Report [{}] saved.".format(app.report.id_to_name(nr)),
-                replace_original=True,
-            )
-        else:
-            nr = app.report.create(
-                rjson["callback_id"],
-                rjson["user"],
-                rjson["channel"],
-                rjson["submission"],
-            )
-            # Inform user
-            post_message(
-                rjson["channel"]["id"],
-                rjson["user"]["id"],
-                "Report [{}] saved.".format(app.report.id_to_name(nr)),
-            )
-    return {}
-
-
-def handle_report_cancel(rjson):
-    # Called on dialog cancel.
-    app = asyncev.wapp
-    with app.app_context():
-        if rjson["state"]:
-            # created via start_new / @xx new report
-            # state is json containing report id and response url
-            state = json.loads(rjson["state"])
-            logger.info("Cancelled - deleting report {}".format(state["rid"]))
-            rm = app.report.get(state["rid"])
-            if rm:
-                app.report.delete(rm, app.s3)
-            send_update(state["ru"], "", delete_original=True)
-    return {}
+        open_disturbance_report_modal(trigger, state)
