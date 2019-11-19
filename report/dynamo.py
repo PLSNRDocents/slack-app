@@ -216,7 +216,8 @@ class Report:
     @staticmethod
     def _fillin(nr, rtype, who, channel, dinfo):
         nr.type = rtype
-        nr.channel = channel["id"]
+        if channel:
+            nr.channel = channel["id"]
         nr.details = dinfo["details"]
         nr.location = dinfo["location"]
         nr.issues = dinfo["issues"]

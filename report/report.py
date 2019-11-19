@@ -1,0 +1,216 @@
+# Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
+
+import json
+import logging
+
+import asyncev
+from constants import TRAIL_VALUE_2_DESC, TYPE_TRAIL, TYPE_DISTURBANCE, ISSUES_2_DESC
+import exc
+from slack_api import post, post_ephemeral_message, post_message, user_to_name
+from utils import input_block, pt_input_element, select_element
+
+
+logger = logging.getLogger("report")
+
+
+def open_trail_report_modal(trigger, state):
+    trail_options = []
+    for n, d in TRAIL_VALUE_2_DESC.items():
+        trail_options.append((d, n))
+    valid_trail_issues = ["po", "sign", "cable", "tree", "step", "trash", "ot"]
+    trail_issues = []
+    for n in valid_trail_issues:
+        trail_issues.append((ISSUES_2_DESC[n], n))
+
+    blocks = []
+    blocks.append(
+        input_block(
+            "issues", "Trail", select_element("value", "Select one", trail_issues)
+        )
+    )
+    blocks.append(
+        input_block(
+            "location",
+            "Trail/Location",
+            select_element("value", "Select one", trail_options),
+        )
+    )
+    blocks.append(
+        input_block(
+            "cross",
+            "Nearest Cross Trail",
+            select_element("value", "Select one", trail_options),
+            optional=True,
+        )
+    )
+    blocks.append(
+        input_block(
+            "gps",
+            "GPS",
+            pt_input_element(
+                "value", "Use Compass app (ios) to grab current coordinates"
+            ),
+            optional=True,
+        )
+    )
+    blocks.append(
+        input_block(
+            "details",
+            "Additional Details",
+            pt_input_element("value", "Any additional details", multiline=True),
+            optional=True,
+        )
+    )
+    view = {
+        "type": "modal",
+        "callback_id": TYPE_TRAIL,
+        "title": {"type": "plain_text", "text": "Trail Report"},
+        "notify_on_close": True,
+        "private_metadata": state,
+        "submit": {"type": "plain_text", "text": "Submit"},
+        "blocks": blocks,
+    }
+
+    try:
+        post("views.open", dict(trigger_id=trigger, view=view))
+    except exc.SlackApiError as ex:
+        if "trigger_expired" in repr(ex):
+            logger.warning("Received trigger expired - ignoring")
+        else:
+            raise
+
+
+def open_disturbance_report_modal(trigger, state):
+    trail_options = []
+    for n, d in TRAIL_VALUE_2_DESC.items():
+        trail_options.append((d, n))
+    valid_dist_issues = [
+        "off",
+        "eat",
+        "pet",
+        "take",
+        "tide",
+        "climb",
+        "evil",
+        "pin",
+        "ott",
+        "bird",
+        "jump",
+        "bike",
+        "drone",
+        "air",
+        "fish",
+        "ot",
+    ]
+    disturbance_issues = []
+    for n in valid_dist_issues:
+        disturbance_issues.append((ISSUES_2_DESC[n], n))
+
+    blocks = []
+    blocks.append(
+        input_block(
+            "issues",
+            "Disturbance",
+            select_element("value", "Select one", disturbance_issues),
+        )
+    )
+    blocks.append(
+        input_block(
+            "location",
+            "Trail/Location",
+            select_element("value", "Select one", trail_options),
+        )
+    )
+    blocks.append(
+        input_block(
+            "cross",
+            "Nearest Cross Trail",
+            select_element("value", "Select one", trail_options),
+            optional=True,
+        )
+    )
+    blocks.append(
+        input_block(
+            "gps",
+            "GPS",
+            pt_input_element(
+                "value", "Use Compass app (ios) to grab current coordinates"
+            ),
+            optional=True,
+        )
+    )
+    blocks.append(
+        input_block(
+            "details",
+            "Additional Details",
+            pt_input_element("value", "Any additional details", multiline=True),
+            optional=True,
+        )
+    )
+    view = {
+        "type": "modal",
+        "callback_id": TYPE_DISTURBANCE,
+        "title": {"type": "plain_text", "text": "Disturbance Report"},
+        "notify_on_close": True,
+        "private_metadata": state,
+        "submit": {"type": "plain_text", "text": "Submit"},
+        "blocks": blocks,
+    }
+
+    try:
+        post("views.open", dict(trigger_id=trigger, view=view))
+    except exc.SlackApiError as ex:
+        if "expired" in repr(ex):
+            logger.warning("Received trigger expired - ignoring")
+        else:
+            raise
+
+
+def handle_report_submit_modal(rjson):
+    app = asyncev.wapp
+    with app.app_context():
+        userid = rjson["user"]["id"]
+        state = json.loads(rjson["view"]["private_metadata"])
+        logger.info(
+            "Report submit by {}({}) type {} rid {}".format(
+                user_to_name(userid), userid, rjson["view"]["callback_id"], state["rid"]
+            )
+        )
+        nr = app.report.get(state["rid"])
+        if not nr:
+            # hmm - what happened to the report
+            post_ephemeral_message(
+                rjson["channel"]["id"],
+                rjson["user"]["id"],
+                "Couldn't find report {}".format(state["rid"]),
+            )
+            return
+        values = rjson["view"]["state"]["values"]
+        dinfo = {}
+        for field in ["issues", "location", "cross", "gps", "details"]:
+            # Always returns something for each
+            dinfo[field] = None
+            rv = values[field]["value"]
+            if rv["type"] == "static_select":
+                if "selected_option" in rv:
+                    dinfo[field] = rv["selected_option"]["value"]
+            elif "value" in rv:
+                dinfo[field] = rv["value"]
+        nr = app.report.complete(
+            nr, rjson["view"]["callback_id"], rjson["user"], None, dinfo
+        )
+        # inform user
+        post_message(userid, "Report [{}] saved.".format(app.report.id_to_name(nr)))
+    return {}
+
+
+def handle_report_cancel_modal(rjson):
+    # Called on modal cancel.
+    app = asyncev.wapp
+    with app.app_context():
+        state = json.loads(rjson["view"]["private_metadata"])
+        logger.info("Cancelled - deleting report {}".format(state["rid"]))
+        rm = app.report.get(state["rid"])
+        if rm:
+            app.report.delete(rm, app.s3)
+    return {}

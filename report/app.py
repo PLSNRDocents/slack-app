@@ -8,10 +8,10 @@ from flask import Flask
 
 from api import api
 import asyncev
-
 from constants import LOG_FORMAT, DATE_FMT
 import dynamo
 import s3
+from slack_api import get_bot_info
 
 REQUIRED_CONFIG = ["SIGNING_SECRET", "BOT_TOKEN"]
 
@@ -71,6 +71,10 @@ def create_app():
         if app.config["USE_DYNAMO"]:
             # app.ddb.destroy_all()
             app.ddb.create_all()
+
+    @app.before_first_request
+    def whoami():
+        get_bot_info()
 
     return app
 

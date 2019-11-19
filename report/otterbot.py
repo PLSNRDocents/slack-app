@@ -24,7 +24,12 @@ from constants import (
 
 import plweb
 from quotes import QUOTES
-from slack_api import get_file_info, delete_message, post_message, user_to_name
+from slack_api import (
+    get_file_info,
+    delete_message,
+    post_ephemeral_message,
+    user_to_name,
+)
 from utils import text_block, divider_block, text_image, buttons_block
 
 
@@ -55,8 +60,12 @@ def talk_to_me(event_id, event):
             whatsup = " ".join(event["text"].split()).split()
             # First word is the @mention
             logger.info(
-                "Event id {} event_ts {} user {} text {}".format(
-                    event_id, event["event_ts"], user_to_name(event["user"]), whatsup
+                "Event id {} event_ts {} user {}({}) text {}".format(
+                    event_id,
+                    event["event_ts"],
+                    user_to_name(event["user"]),
+                    event["user"],
+                    whatsup,
                 )
             )
 
@@ -84,7 +93,7 @@ def talk_to_me(event_id, event):
                     pme(
                         event,
                         "It appears you are trying to create a report -"
-                        " use *@{}* new".format(app.config["BOT_NAME"]),
+                        " use new report",
                     )
                 # Options:
                 # Whether to return reports with any status
@@ -157,7 +166,7 @@ def talk_to_me(event_id, event):
                             )
                         else:
                             blocks.append(text_block(text))
-                post_message(event["channel"], event["user"], blocks)
+                post_ephemeral_message(event["channel"], event["user"], blocks)
                 delete_message(event["channel"], event["ts"])
             elif re.match(r"new", whatsup[1], re.IGNORECASE):
                 try:
@@ -167,15 +176,15 @@ def talk_to_me(event_id, event):
                 except (ValueError, IndexError):
                     pme(
                         event,
-                        "Use: *@{}* new r(eport) to start a new report "
-                        "(with attached photos).".format(app.config["BOT_NAME"]),
+                        "Use: new r(eport) to start a new report "
+                        "(with attached photos).",
                     )
                     return
                 # create new report to store photos
                 nr = app.report.start_new()
                 logger.info(
                     "User {}({}) starting new report {}".format(
-                        event["user"], user_to_name(event["user"]), nr.id
+                        user_to_name(event["user"]), event["user"], nr.id
                     )
                 )
 
@@ -227,7 +236,7 @@ def talk_to_me(event_id, event):
 
                     if action.startswith("del"):
                         if event["user"] not in ADMIN_USER_IDS:
-                            post_message(
+                            post_ephemeral_message(
                                 event["channel"],
                                 event["user"],
                                 "You aren't authorized to delete reports",
@@ -239,7 +248,9 @@ def talk_to_me(event_id, event):
                         elif len(whatsup) == 4 and whatsup[3].startswith("photo"):
                             just_photos = True
                         else:
-                            post_message(event["channel"], event["user"], usage)
+                            post_ephemeral_message(
+                                event["channel"], event["user"], usage
+                            )
                             return
                         logger.info(
                             "User {}({}) requesting to delete {} {}".format(
@@ -367,7 +378,7 @@ def talk_to_me(event_id, event):
             else:
                 blocks = [
                     text_block(
-                        "Sorry didn't hear you - I was sleeping.\nYou can ask for:\n"
+                        "*Sorry didn't hear you - I was sleeping.*\nYou can ask for:\n"
                         "*reports* - Show most recent trail/disturbance reports.\n"
                         "*new* - Create a report with optional photos.\n"
                         "_report_id_ - Modify/Delete/Add photos"
@@ -395,7 +406,7 @@ def talk_to_me(event_id, event):
 
 
 def pme(event, text):
-    post_message(event["channel"], event["user"], text)
+    post_ephemeral_message(event["channel"], event["user"], text)
 
 
 def convert_gps(gps):

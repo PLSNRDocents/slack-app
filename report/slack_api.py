@@ -9,6 +9,7 @@ import requests
 from exc import SlackApiError
 
 SLACK_URL = "https://www.slack.com/api/"
+BOT_USER_ID = ""
 
 logger = logging.getLogger(__name__)
 
@@ -42,15 +43,13 @@ def post(endpoint, payload, auth=None):
     return _chk_error(rv, endpoint)
 
 
-def get(endpoint, slack_id):
+def get(endpoint, params=None):
     headers = {
         "Authorization": "Bearer {}".format(os.environ["BOT_TOKEN"]),
         "Content-Type": "application/json;charset=utf-8",
         "Accept": "application/json",
     }
-    rv = requests.get(
-        SLACK_URL + "/" + endpoint, headers=headers, params={"user": slack_id}
-    )
+    rv = requests.get(SLACK_URL + "/" + endpoint, headers=headers, params=params)
     rv.raise_for_status()
     return rv.json()
 
@@ -73,7 +72,7 @@ def send_update(response_url, text, replace_original=False, delete_original=Fals
     _chk_error(rv, response_url)
 
 
-def post_message(channel, user, payload):
+def post_ephemeral_message(channel, user, payload):
     if isinstance(payload, list):
         content = {"text": "a report", "blocks": payload}
     else:
@@ -81,6 +80,17 @@ def post_message(channel, user, payload):
     content.update(channel=channel, user=user, as_user=True)
     jresponse = post("chat.postEphemeral", content)
     return jresponse["message_ts"]
+
+
+def post_message(channel, payload):
+    """ PostMessage - 'channel' can be user ID. """
+    if isinstance(payload, list):
+        content = {"text": "a report", "blocks": payload}
+    else:
+        content = {"text": payload}
+    content.update(channel=channel, as_user=True)
+    jresponse = post("chat.postMessage", content)
+    return jresponse["ts"]
 
 
 def delete_message(channel, ts):
@@ -97,7 +107,18 @@ def delete_message(channel, ts):
 @cachetools.func.ttl_cache(600, ttl=60 * 60 * 24)
 def user_to_name(slack_user_id):
     try:
-        j = get("users.info", slack_user_id)
+        j = get("users.info", params={"user": slack_user_id})
         return j["user"]["real_name"]
     except Exception:
         return ""
+
+
+def get_bot_info():
+    j = get("auth.test")
+    global BOT_USER_ID
+    BOT_USER_ID = j["user_id"]
+    logger.info("BOT USER ID {}".format(BOT_USER_ID))
+
+
+def get_bot_user_id():
+    return BOT_USER_ID
