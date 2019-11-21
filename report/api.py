@@ -1,12 +1,17 @@
 # Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
 
+from dateutil import tz
+import datetime
 import logging
 import json
 
 from flask import Blueprint, abort, current_app, jsonify, request
 import slack
 
+import asyncev
 from asyncev import run_async
+import exc
+from home import handle_home
 from otterbot import talk_to_me
 from report import (
     open_disturbance_report_modal,
@@ -14,7 +19,8 @@ from report import (
     handle_report_cancel_modal,
     handle_report_submit_modal,
 )
-from slack_api import get_file_info, get_bot_user_id
+from slack_api import get_file_info, get_bot_user_id, post
+import utils
 
 api = Blueprint("api", __name__, url_prefix="/")
 logger = logging.getLogger("api")
@@ -60,18 +66,25 @@ def submit():
 
     elif rjson["type"] == "block_actions":
         # ts = rjson["container"]["message_ts"]
-        # trigger_id, response_url
-        rid = rjson["actions"][0]["block_id"]
-        value = rjson["actions"][0]["value"]
-        state = json.dumps({"rid": rid})
+        block_id = rjson["actions"][0]["block_id"]
+        block_type = block_id.split(":")[0]
+        if block_type in ["NEWREP", "HOMETRAILREP", "HOMEDISTREP"]:
+            rid = block_id.split(":")[1]
+            value = rjson["actions"][0]["value"]
+            state = json.dumps({"rid": rid})
 
-        run_async(
-            current_app.config["EV_MODE"],
-            start_report,
-            value,
-            rjson["trigger_id"],
-            state,
-        )
+            run_async(
+                current_app.config["EV_MODE"],
+                start_report,
+                value,
+                rjson["trigger_id"],
+                state,
+            )
+        elif block_type == "HOMEAT":
+            value = rjson["actions"][0]["value"]
+            run_async(current_app.config["EV_MODE"], handle_at, value, rjson)
+        else:
+            logger.error("Unknown block actions block id {}".format(block_id))
         return "", 200
 
     logger.error("Unhandled type {}: {}".format(rjson["type"], rjson))
@@ -113,6 +126,9 @@ def events():
             run_async(current_app.config["EV_MODE"], talk_to_me, event_id, event)
         elif event["type"] == "file_created" or event["type"] == "file_shared":
             run_async(current_app.config["EV_MODE"], handle_file, event)
+        elif event["type"] == "app_home_opened":
+            if event["tab"] == "home":
+                run_async(current_app.config["EV_MODE"], handle_home, event)
         elif event["type"] == "message":
             subtype = event.get("subtype", "")
             if subtype and subtype != "file_share":
@@ -188,3 +204,49 @@ def start_report(ttype, trigger, state):
         open_trail_report_modal(trigger, state)
     else:
         open_disturbance_report_modal(trigger, state)
+
+
+def handle_at(when, rjson):
+    """ Handle Home buttons for 'at'. """
+    app = asyncev.wapp
+    with app.app_context():
+        # userid = rjson["user"]["id"]
+        where = "all"
+        today = datetime.datetime.now(tz.tzutc())
+        which_day = today
+        if when == "Tomorrow":
+            which_day = today + datetime.timedelta(days=1)
+
+        lday, ckey = utils.at_cache_helper(which_day, where)
+        logger.info(
+            "Looking for at info for Pacific TZ: {} Key: {}".format(
+                lday.isoformat(), ckey
+            )
+        )
+        atinfo = app.ddb_cache.get(ckey)
+        if not atinfo:
+            logger.warning("No atinfo for ckey: {}".format(ckey))
+            view = {
+                "type": "modal",
+                "title": {"type": "plain_text", "text": "Hmm don't know that one"},
+                "notify_on_close": False,
+                "blocks": [],
+            }
+        else:
+            blocks = utils.atinfo_to_blocks(atinfo, lday)
+            view = {
+                "type": "modal",
+                "title": {"type": "plain_text", "text": "Who's at the Reserve"},
+                "notify_on_close": False,
+                "blocks": blocks,
+            }
+
+        try:
+            post("views.open", dict(trigger_id=rjson["trigger_id"], view=view))
+        except exc.SlackApiError as ex:
+            if "trigger_expired" in repr(ex):
+                logger.warning("Received trigger expired - ignoring")
+            else:
+                raise
+
+    return {}

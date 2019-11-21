@@ -194,6 +194,13 @@ class Report:
         """ When creating a report using interactive messages and photos
         were uploaded at the beginning.
         """
+        nr = self._initrm()
+        table = self._conn.Table(TN_LOOKUP["reports"])
+        rv = table.put_item(Item=rm2ddb(nr))
+        self._logger.info("New report: rv {}".format(rv))
+        return nr
+
+    def _initrm(self):
         dt = datetime.now(tz.tzutc())
         dts = int(dt.timestamp() * 1000000)
         nr = ReportModel(
@@ -208,9 +215,6 @@ class Report:
             create_ts=dts,
             update_ts=dts,
         )
-        table = self._conn.Table(TN_LOOKUP["reports"])
-        rv = table.put_item(Item=rm2ddb(nr))
-        self._logger.info("New report: rv {}".format(rv))
         return nr
 
     @staticmethod
@@ -233,11 +237,15 @@ class Report:
         dts = int(dt.timestamp() * 1000000)
         return dt, dts
 
-    """
     def create(self, rtype, who, channel, dinfo):
-        nr = ReportModel(type=rtype, status=STATUS_REPORTED)
+        nr = self._initrm()
+        nr.status = STATUS_REPORTED
         self._fillin(nr, rtype, who, channel, dinfo)
-        return self.get(nr.id)"""
+
+        table = self._conn.Table(TN_LOOKUP["reports"])
+        rv = table.put_item(Item=rm2ddb(nr))
+        self._logger.info("Created report: rv {}".format(rv))
+        return nr
 
     def complete(self, nr: ReportModel, rtype, who, channel, dinfo):
         # Finish up a report created via start_new

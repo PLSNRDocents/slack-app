@@ -30,6 +30,7 @@ from slack_api import (
     post_ephemeral_message,
     user_to_name,
 )
+import utils
 from utils import text_block, divider_block, text_image, buttons_block
 
 
@@ -171,13 +172,13 @@ def talk_to_me(event_id, event):
             elif re.match(r"new", whatsup[1], re.IGNORECASE):
                 try:
                     what = whatsup[2]
-                    if not what.startswith("r"):
+                    if not what.startswith("rep"):
                         raise ValueError()
                 except (ValueError, IndexError):
                     pme(
                         event,
-                        "Use: new r(eport) to start a new report "
-                        "(with attached photos).",
+                        "Use: new rep(ort) to start a new report "
+                        "(with optional attached photos).",
                     )
                     return
                 # create new report to store photos
@@ -196,7 +197,7 @@ def talk_to_me(event_id, event):
                 b.append(divider_block())
                 b.append(
                     buttons_block(
-                        nr.id,
+                        "NEWREP:" + nr.id,
                         [("Trail", TYPE_TRAIL), ("Disturbance", TYPE_DISTURBANCE)],
                     )
                 )
@@ -310,10 +311,7 @@ def talk_to_me(event_id, event):
             elif re.match(r"at", whatsup[1], re.IGNORECASE):
                 # default to all locations for 'today'.
                 where = "all"
-                today = datetime.datetime.now(tz.tzutc())
-                which_day = today
 
-                tomorrow = today + datetime.timedelta(days=1)
                 want_tomorrow = False
                 if len(whatsup) > 2:
                     # at <where> e.g. at info
@@ -337,12 +335,13 @@ def talk_to_me(event_id, event):
                         ):
                             # tomorrow
                             want_tomorrow = True
-                if want_tomorrow:
-                    which_day = tomorrow
 
-                # Look for day based on our location (America/Los_Angeles)
-                lday = which_day.astimezone(tz=tz.gettz("America/Los_Angeles"))
-                ckey = "{}:{}".format(lday.strftime("%Y%m%d"), where)
+                today = datetime.datetime.now(tz.tzutc())
+                which_day = today
+                if want_tomorrow:
+                    which_day = today + datetime.timedelta(days=1)
+
+                lday, ckey = utils.at_cache_helper(which_day, where)
                 logger.info(
                     "Looking for at info for Pacific TZ: {} Key: {}".format(
                         lday.isoformat(), ckey
@@ -361,17 +360,7 @@ def talk_to_me(event_id, event):
                     )
                     atinfo = plweb.whoat(lday.strftime("%Y%m%d"), where)
                     app.ddb_cache.put(ckey, atinfo)
-                blocks = []
-                blocks.append(divider_block())
-                blocks.append(text_block(lday.strftime("%b %d %Y")))
-                for loc, what in atinfo.items():
-                    if what:
-                        t = "*{}:*".format(loc)
-                        for i in what:
-                            t += "\n_{}_: {}".format(i["time"], ", ".join(i["who"]))
-                            if "title" in i:
-                                t += " - {}".format(i["title"])
-                        blocks.append(text_block(t))
+                blocks = utils.atinfo_to_blocks(atinfo, lday)
 
                 delete_message(event["channel"], event["ts"])
                 pme(event, blocks)
