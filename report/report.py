@@ -5,6 +5,7 @@ import logging
 
 import asyncev
 from constants import (
+    KIOSK_RESOLVED_UNKNOWN,
     STATUS_PLACEHOLDER,
     TRAIL_VALUE_2_DESC,
     TYPE_TRAIL,
@@ -138,10 +139,24 @@ def open_disturbance_report_modal(trigger, state):
     )
     blocks.append(
         input_block(
-            "gps",
-            "GPS",
-            pt_input_element(
-                "value", "Use Compass app (ios) to grab current coordinates"
+            "kiosk_called",
+            "Was Kiosk Called?",
+            select_element(
+                "value",
+                "Select Yes or No",
+                [("Yes", "yes"), ("No", "no")],
+                initial_option=("No", "no"),
+            ),
+        )
+    )
+    blocks.append(
+        input_block(
+            "kiosk_resolution",
+            "Did kiosk/SP personnel resolve issue?",
+            select_element(
+                "value",
+                "Select One",
+                [("Yes", "yes"), ("No", "no"), ("Unsure", KIOSK_RESOLVED_UNKNOWN)],
             ),
             optional=True,
         )
@@ -191,14 +206,18 @@ def handle_report_submit_modal(rjson):
             if not nr:
                 # hmm - what happened to the report
                 post_message(userid, "Couldn't find report {}".format(state["rid"]))
-                return
+                return {}
+            if nr.status != STATUS_PLACEHOLDER:
+                # Hmm - report ID already completed. This can happen when starting with
+                # 'new rep' which produces the 'trail' versus 'disturbance' buttons
+                # and those buttons are used more than once.
+                post_message(userid, "Report {} already completed?".format(nr.id))
+                return {}
 
         values = rjson["view"]["state"]["values"]
         dinfo = {}
-        for field in ["issues", "location", "cross", "gps", "details"]:
+        for field in app.report.user_field_list():
             # desktop app always returns something - iphone app doesn't.
-            # Always returns something for each
-            dinfo[field] = None
             if field in values:
                 rv = values[field]["value"]
                 if rv["type"] == "static_select":

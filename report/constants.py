@@ -9,6 +9,7 @@ STATUS_CONFIRMED = "confirmed"
 STATUS_CLOSED = "closed"
 TYPE_TRAIL = "trail"
 TYPE_DISTURBANCE = "disturbance"
+KIOSK_RESOLVED_UNKNOWN = "unknown"
 
 TRAIL_VALUE_2_DESC = {
     "tll": "Lace Lichen",
@@ -23,13 +24,14 @@ TRAIL_VALUE_2_DESC = {
     "tslp": "Sea Lion Pt",
     "tss": "South Shore",
     "lwb": "Weston Beach",
-    "tbi": "Bird Island",
+    "tbi": "Bird Island Trail",
+    "lcc": "China Cove",
     "lgb": "Gibson Beach",
     "tsp": "South Plateau",
     "tpr": "Pine Ridge",
     "lpw": "Piney Woods",
     "tmm": "Mound Meadow",
-    "lUnk": "Unknown",
+    "lot": "Other",
 }
 
 # This is a comprehensive list for ALL report types
