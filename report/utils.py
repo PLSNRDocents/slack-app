@@ -65,7 +65,7 @@ def pt_input_element(action_id, place_text, multiline=False):
     return e
 
 
-def select_element(action_id, place_text, options):
+def select_element(action_id, place_text, options, initial_option=None):
     ops = []
     for o in options:
         ops.append({"text": {"type": "plain_text", "text": o[0]}, "value": o[1]})
@@ -75,6 +75,11 @@ def select_element(action_id, place_text, options):
         "placeholder": {"type": "plain_text", "text": place_text},
         "options": ops,
     }
+    if initial_option:
+        e["initial_option"] = {
+            "text": {"type": "plain_text", "text": initial_option[0]},
+            "value": initial_option[1],
+        }
     return e
 
 

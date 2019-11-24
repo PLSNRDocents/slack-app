@@ -68,6 +68,12 @@ def submit():
         # ts = rjson["container"]["message_ts"]
         block_id = rjson["actions"][0]["block_id"]
         block_type = block_id.split(":")[0]
+        """
+        if "container" in rjson and rjson["container"].get("type", None) == "message":
+            initiating_channel = rjson["container"]["channel_id"]
+            initiating_message = rjson["container"]["message_ts"]
+        """
+
         if block_type in ["NEWREP", "HOMETRAILREP", "HOMEDISTREP"]:
             rid = block_id.split(":")[1]
             value = rjson["actions"][0]["value"]
@@ -127,7 +133,8 @@ def events():
         elif event["type"] == "file_created" or event["type"] == "file_shared":
             run_async(current_app.config["EV_MODE"], handle_file, event)
         elif event["type"] == "app_home_opened":
-            if event["tab"] == "home":
+            # Alas mobile app doesn't work yet
+            if event.get("tab", None) == "home":
                 run_async(current_app.config["EV_MODE"], handle_home, event)
         elif event["type"] == "message":
             subtype = event.get("subtype", "")

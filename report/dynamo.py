@@ -10,7 +10,7 @@ This has the advantage of:
 
 """
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from dateutil import tz
 import decimal
@@ -27,6 +27,7 @@ import image
 import slack_api
 
 from constants import (
+    KIOSK_RESOLVED_UNKNOWN,
     STATUS_PLACEHOLDER,
     STATUS_REPORTED,
     STATUS_CONFIRMED,
@@ -156,7 +157,35 @@ class ReportModel:
     # channel this report was filed on
     channel: str = None
 
+    # kiosk
+    kiosk_called: str = "no"
+    kiosk_resolution: str = KIOSK_RESOLVED_UNKNOWN
+
     photos: List[PhotoModel] = field(default_factory=list)
+
+    @classmethod
+    def field_list(cls) -> set:
+        """ Return set of all field names """
+        return {f.name for f in fields(cls)}
+
+    @classmethod
+    def user_field_list(cls) -> set:
+        """ Return set of all field names that are user/form settable """
+        internal = {
+            "id",
+            "allreports",
+            "create_datetime",
+            "create_ts",
+            "update_datetime",
+            "update_ts",
+            "photos",
+            "type",
+            "status",
+            "reporter",
+            "reporter_slack_handle",
+            "reporter_slack_id",
+        }
+        return cls.field_list() - internal
 
 
 def ddb2rm(item):
@@ -222,11 +251,9 @@ class Report:
         nr.type = rtype
         if channel:
             nr.channel = channel["id"]
-        nr.details = dinfo["details"]
-        nr.location = dinfo["location"]
-        nr.issues = dinfo["issues"]
-        nr.gps = dinfo["gps"]
-        nr.cross_trail = dinfo["cross"]
+        for f in nr.user_field_list():
+            if f in dinfo:
+                setattr(nr, f, dinfo[f])
         nr.reporter_slack_handle = who["name"]
         nr.reporter_slack_id = who["id"]
         nr.reporter = slack_api.user_to_name(who["id"])
@@ -244,7 +271,7 @@ class Report:
 
         table = self._conn.Table(TN_LOOKUP["reports"])
         rv = table.put_item(Item=rm2ddb(nr))
-        self._logger.info("Created report: rv {}".format(rv))
+        self._logger.info("Created report {}: rv {}".format(nr.id, rv))
         return nr
 
     def complete(self, nr: ReportModel, rtype, who, channel, dinfo):
@@ -254,7 +281,7 @@ class Report:
 
         table = self._conn.Table(TN_LOOKUP["reports"])
         rv = table.put_item(Item=rm2ddb(nr))
-        self._logger.info("Finished report: rv {}".format(rv))
+        self._logger.info("Finished report {}: rv {}".format(nr.id, rv))
         return nr
 
     def fetch_all(self, limit=10, active=True) -> List[ReportModel]:
@@ -362,6 +389,10 @@ class Report:
         if re.match(r"(TR-|DR-)", rname, re.IGNORECASE):
             rname = rname[3:]
         return rname
+
+    @classmethod
+    def user_field_list(cls):
+        return ReportModel.user_field_list()
 
 
 class DDBCache:

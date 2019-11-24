@@ -25,6 +25,7 @@ from constants import (
 import plweb
 from quotes import QUOTES
 from slack_api import (
+    get,
     get_file_info,
     delete_message,
     post_ephemeral_message,
@@ -61,9 +62,10 @@ def talk_to_me(event_id, event):
             whatsup = " ".join(event["text"].split()).split()
             # First word is the @mention
             logger.info(
-                "Event id {} event_ts {} user {}({}) text {}".format(
+                "Event id {} event_ts {} channel {} user {}({}) text {}".format(
                     event_id,
                     event["event_ts"],
+                    event.get("channel", "??"),
                     user_to_name(event["user"]),
                     event["user"],
                     whatsup,
@@ -124,6 +126,11 @@ def talk_to_me(event_id, event):
                         dt = "<!date^{}^{{date_short_pretty}} {{time}}|{}>".format(
                             int(r.create_datetime.timestamp()), r.create_datetime
                         )
+                        kiosk = ""
+                        if r.kiosk_called != "no":
+                            kiosk = "\nKiosk called - resolved: _{}_".format(
+                                r.kiosk_resolution
+                            )
                         url = None
                         if len(r.photos) > 0:
                             url = (
@@ -139,7 +146,7 @@ def talk_to_me(event_id, event):
                         text = (
                             "[{}] {date} _{who}_ {status} {type}:"
                             "\n*{issue}* {verb} _{location}_ {gps}"
-                            "  {photo_link}".format(
+                            "  {photo_link}{kiosk}".format(
                                 app.report.id_to_name(r),
                                 date=dt,
                                 who=r.reporter
@@ -156,6 +163,7 @@ def talk_to_me(event_id, event):
                                 photo_link="(<{}|Big Picture>)".format(url)
                                 if url
                                 else "",
+                                kiosk=kiosk,
                             )
                         )
                         if url:
@@ -201,6 +209,16 @@ def talk_to_me(event_id, event):
                         [("Trail", TYPE_TRAIL), ("Disturbance", TYPE_DISTURBANCE)],
                     )
                 )
+                # debugging why I cant delete other messages.
+                convos = get(
+                    "conversations.list",
+                    params={"types": "public_channel," " private_channel, mpim, im"},
+                )
+                for c in convos["channels"]:
+                    if c["id"] == event["channel"]:
+                        logger.info("Channel info: {}".format(json.dumps(c, indent=4)))
+                delete_message(event["channel"], event["ts"])
+
                 pme(event, b)
 
                 # grab photos
