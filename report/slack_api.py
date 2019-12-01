@@ -19,9 +19,7 @@ def _chk_error(rv, endpoint):
         jresponse = rv.json()
     except Exception:
         jresponse = None
-    logger.info(
-        "Slack POST to {} status {}".format(endpoint, rv.status_code)
-    )
+    logger.info("Slack POST to {} status {}".format(endpoint, rv.status_code))
     if rv.status_code != 200 or (jresponse and "error" in jresponse):
         raise SlackApiError("Endpoint {} error {}".format(endpoint, jresponse["error"]))
     return jresponse

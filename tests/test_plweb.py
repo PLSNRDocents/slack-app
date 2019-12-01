@@ -13,6 +13,17 @@ def test_today():
         assert ans[3] == {"time": "3-5", "who": ["R Henry"]}
 
 
+def test_today_bom():
+    """ Current website doesn't handle timezones and there end of month
+    well - so early on the First - it still shows last month first.
+    Also - this makes 'tomorrow' work across months. """
+    with open(os.path.join(os.path.dirname(__file__), "data/info-dec1.html")) as fp:
+        page = fp.read()
+        ans = plweb.at_station(page, "20191201")
+        assert len(ans) == 4
+        assert ans[3] == {"time": "3-5", "who": ["B Boles", "KA Ryan"]}
+
+
 def test_anyday():
     with open(os.path.join(os.path.dirname(__file__), "data/info.html")) as fp:
         page = fp.read()
