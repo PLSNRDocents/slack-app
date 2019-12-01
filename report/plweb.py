@@ -5,6 +5,7 @@ import os
 
 
 from bs4 import BeautifulSoup
+from dateutil import parser as date_parser
 import requests
 
 from exc import ParseError
@@ -74,24 +75,37 @@ def at_station(page, when):
     # This assumes date of form YYYYMMDD
     dom = str(int(when[6:]))
     hc = BeautifulSoup(page, features="html.parser")
-    shift_days = hc.find_all("td", class_="shift-day")
-    for shift in shift_days:
-        cd = shift.find_all("table", class_="calendar-day")
-        rows = cd[0].find_all("tr")
-        date_labels = rows[0].find_all("div", class_="label-date")
-        # mostly text is just 'dd' - but for 'at_station' it is '*dd*'
-        rdom = date_labels[0].text.strip("*")
-        if dom == rdom:
-            # This is us.
-            ans = []
-            if len(rows) != 5:
-                raise ParseError("{} rows in at_station table".format(len(rows)))
-            for idx, row_data in enumerate(rows):
-                if idx > 0:
-                    # Each row has one or more <span>
-                    who = [s.text for s in row_data.find_all("span")]
-                    ans.append({"time": IDX_TO_TIME[idx], "who": who})
-            return ans
+
+    # start by looking for correct month (this is an issue due to current web
+    # not handling timezones correctly.
+    rmonth = date_parser.parse(when).strftime("%B")
+    cmonths = hc.find_all("table", class_="calendar-month")
+    for month in cmonths:
+        # Look for title.
+        title = month.find_all("span", class_="cal-section")
+        if rmonth in title[0].text:
+            # This is the correct one
+
+            shift_days = month.find_all("td", class_="shift-day")
+            for shift in shift_days:
+                cd = shift.find_all("table", class_="calendar-day")
+                rows = cd[0].find_all("tr")
+                date_labels = rows[0].find_all("div", class_="label-date")
+                # mostly text is just 'dd' - but for 'at_station' it is '*dd*'
+                rdom = date_labels[0].text.strip("*")
+                if dom == rdom:
+                    # This is us.
+                    ans = []
+                    if len(rows) != 5:
+                        raise ParseError(
+                            "{} rows in at_station table".format(len(rows))
+                        )
+                    for idx, row_data in enumerate(rows):
+                        if idx > 0:
+                            # Each row has one or more <span>
+                            who = [s.text for s in row_data.find_all("span")]
+                            ans.append({"time": IDX_TO_TIME[idx], "who": who})
+                    return ans
 
 
 def _gettime(d):
