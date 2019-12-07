@@ -31,8 +31,10 @@ from constants import (
     STATUS_PLACEHOLDER,
     STATUS_REPORTED,
     STATUS_CONFIRMED,
+    TRAIL_VALUE_2_DESC,
     TYPE_TRAIL,
     TYPE_DISTURBANCE,
+    xlate_issues,
 )
 
 TN_LOOKUP = {"reports": "reports", "idgen": "idgen", "cache": "cache"}
@@ -213,7 +215,26 @@ def rm2ddb(rm: ReportModel):
     return item
 
 
+def attr_to_display(r: ReportModel, attr):
+    # Some model attributes are abbreviations
+    # Always return a string to sorting can work.
+    av = getattr(r, attr, None)
+    if not av:
+        return ""
+    if attr == "location":
+        av = TRAIL_VALUE_2_DESC.get(av)
+    elif attr == "cross_trail":
+        av = TRAIL_VALUE_2_DESC.get(av)
+    elif attr == "issues":
+        av = xlate_issues(av)
+    return av
+
+
 class Report:
+
+    ACTIVE_FILTER = Attr("status").is_in([STATUS_REPORTED, STATUS_CONFIRMED])
+    REAL_REPORT_FILTER = Attr("status").ne(STATUS_PLACEHOLDER)
+
     def __init__(self, config, ddb: DDB):
         self._config = config
         self._logger = logging.getLogger(__name__)
@@ -284,7 +305,7 @@ class Report:
         self._logger.info("Finished report {}: rv {}".format(nr.id, rv))
         return nr
 
-    def fetch_all(self, limit=10, active=True) -> List[ReportModel]:
+    def fetch(self, limit=10, filters=None) -> List[ReportModel]:
         table = self._conn.Table(TN_LOOKUP["reports"])
         qopts = dict(
             KeyConditionExpression=Key("allreports").eq(ALL_REPORTS),
@@ -293,10 +314,8 @@ class Report:
         )
         if limit:
             qopts["Limit"] = limit
-        if active:
-            qopts["FilterExpression"] = Attr("status").is_in(
-                [STATUS_REPORTED, STATUS_CONFIRMED]
-            )
+        if filters:
+            qopts["FilterExpression"] = filters
         rv = table.query(**qopts)
         rm = []
         for i in rv["Items"]:

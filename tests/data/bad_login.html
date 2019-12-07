@@ -1,0 +1,868 @@
+b'<!DOCTYPE html>\n
+<html lang="en" dir="ltr">\n
+<head>\n
+    <meta charset="utf-8"/>
+    <script type="text/javascript">(window.NREUM || (NREUM = {})).loader_config = {
+        licenseKey: "eb5300b886",
+        applicationID: "82115055"
+    };
+    window.NREUM || (NREUM = {}), __nr_require = function (n, e, t) {
+        function r(t) {
+            if (!e[t]) {
+                var i = e[t] = {exports: {}};
+                n[t][0].call(i.exports, function (e) {
+                    var i = n[t][1][e];
+                    return r(i || e)
+                }, i, i.exports)
+            }
+            return e[t].exports
+        }
+
+        if ("function" == typeof __nr_require) return __nr_require;
+        for (var i = 0; i < t.length; i++) r(t[i]);
+        return r
+    }({
+        1: [function (n, e, t) {
+            function r() {
+            }
+
+            function i(n, e, t) {
+                return function () {
+                    return o(n, [u.now()].concat(f(arguments)), e ? null : this, t), e ? void 0 : this
+                }
+            }
+
+            var o = n("handle"), a = n(4), f = n(5), c = n("ee").get("tracer"),
+                u = n("loader"), s = NREUM;
+            "undefined" == typeof window.newrelic && (newrelic = s);
+            var p = ["setPageViewName", "setCustomAttribute", "setErrorHandler", "finished", "addToTrace", "inlineHit", "addRelease"],
+                d = "api-", l = d + "ixn-";
+            a(p, function (n, e) {
+                s[e] = i(d + e, !0, "api")
+            }), s.addPageAction = i(d + "addPageAction", !0), s.setCurrentRouteName = i(d + "routeName", !0), e.exports = newrelic, s.interaction = function () {
+                return (new r).get()
+            };
+            var m = r.prototype = {
+                createTracer: function (n, e) {
+                    var t = {}, r = this, i = "function" == typeof e;
+                    return o(l + "tracer", [u.now(), n, t], r), function () {
+                        if (c.emit((i ? "" : "no-") + "fn-start", [u.now(), r, i], t), i) try {
+                            return e.apply(this, arguments)
+                        } catch (n) {
+                            throw c.emit("fn-err", [arguments, this, n], t), n
+                        } finally {
+                            c.emit("fn-end", [u.now()], t)
+                        }
+                    }
+                }
+            };
+            a("actionText,setName,setAttribute,save,ignore,onEnd,getContext,end,get".split(","), function (n, e) {
+                m[e] = i(l + e)
+            }), newrelic.noticeError = function (n, e) {
+                "string" == typeof n && (n = new Error(n)), o("err", [n, u.now(), !1, e])
+            }
+        }, {}], 2: [function (n, e, t) {
+            function r(n, e) {
+                var t = n.getEntries();
+                t.forEach(function (n) {
+                    "first-paint" === n.name ? a("timing", ["fp", Math.floor(n.startTime)]) : "first-contentful-paint" === n.name && a("timing", ["fcp", Math.floor(n.startTime)])
+                })
+            }
+
+            function i(n) {
+                if (n instanceof c && !s) {
+                    var e, t = Math.round(n.timeStamp);
+                    e = t > 1e12 ? Date.now() - t : f.now() - t, s = !0, a("timing", ["fi", t, {
+                        type: n.type,
+                        fid: e
+                    }])
+                }
+            }
+
+            if (!("init" in NREUM && "page_view_timing" in NREUM.init && "enabled" in NREUM.init.page_view_timing && NREUM.init.page_view_timing.enabled === !1)) {
+                var o, a = n("handle"), f = n("loader"), c = NREUM.o.EV;
+                if ("PerformanceObserver" in window && "function" == typeof window.PerformanceObserver) {
+                    o = new PerformanceObserver(r);
+                    try {
+                        o.observe({entryTypes: ["paint"]})
+                    } catch (u) {
+                    }
+                }
+                if ("addEventListener" in document) {
+                    var s = !1,
+                        p = ["click", "keydown", "mousedown", "pointerdown", "touchstart"];
+                    p.forEach(function (n) {
+                        document.addEventListener(n, i, !1)
+                    })
+                }
+            }
+        }, {}], 3: [function (n, e, t) {
+            function r(n, e) {
+                if (!i) return !1;
+                if (n !== i) return !1;
+                if (!e) return !0;
+                if (!o) return !1;
+                for (var t = o.split("."), r = e.split("."), a = 0; a < r.length; a++) if (r[a] !== t[a]) return !1;
+                return !0
+            }
+
+            var i = null, o = null, a = /Version\\/(\\S +
+        )\\s + Safari /;
+            if (navigator.userAgent) {
+                var f = navigator.userAgent, c = f.match(a);
+                c && f.indexOf("Chrome") === -1 && f.indexOf("Chromium") === -1 && (i = "Safari", o = c[1])
+            }
+            e.exports = {agent: i, version: o, match: r}
+        }, {}], 4: [function (n, e, t) {
+            function r(n, e) {
+                var t = [], r = "", o = 0;
+                for (r in n) i.call(n, r) && (t[o] = e(r, n[r]), o += 1);
+                return t
+            }
+
+            var i = Object.prototype.hasOwnProperty;
+            e.exports = r
+        }, {}], 5: [function (n, e, t) {
+            function r(n, e, t) {
+                e || (e = 0), "undefined" == typeof t && (t = n ? n.length : 0);
+                for (var r = -1, i = t - e || 0, o = Array(i < 0 ? 0 : i); ++r < i;) o[r] = n[e + r];
+                return o
+            }
+
+            e.exports = r
+        }, {}], 6: [function (n, e, t) {
+            e.exports = {exists: "undefined" != typeof window.performance && window.performance.timing && "undefined" != typeof window.performance.timing.navigationStart}
+        }, {}], ee: [function (n, e, t) {
+            function r() {
+            }
+
+            function i(n) {
+                function e(n) {
+                    return n && n instanceof r ? n : n ? c(n, f, o) : o()
+                }
+
+                function t(t, r, i, o) {
+                    if (!d.aborted || o) {
+                        n && n(t, r, i);
+                        for (var a = e(i), f = v(t), c = f.length, u = 0; u < c; u++) f[u].apply(a, r);
+                        var p = s[y[t]];
+                        return p && p.push([b, t, r, a]), a
+                    }
+                }
+
+                function l(n, e) {
+                    h[n] = v(n).concat(e)
+                }
+
+                function m(n, e) {
+                    var t = h[n];
+                    if (t) for (var r = 0; r < t.length; r++) t[r] === e && t.splice(r, 1)
+                }
+
+                function v(n) {
+                    return h[n] || []
+                }
+
+                function g(n) {
+                    return p[n] = p[n] || i(t)
+                }
+
+                function w(n, e) {
+                    u(n, function (n, t) {
+                        e = e || "feature", y[t] = e, e in s || (s[e] = [])
+                    })
+                }
+
+                var h = {}, y = {}, b = {
+                    on: l,
+                    addEventListener: l,
+                    removeEventListener: m,
+                    emit: t,
+                    get: g,
+                    listeners: v,
+                    context: e,
+                    buffer: w,
+                    abort: a,
+                    aborted: !1
+                };
+                return b
+            }
+
+            function o() {
+                return new r
+            }
+
+            function a() {
+                (s.api || s.feature) && (d.aborted = !0, s = d.backlog = {})
+            }
+
+            var f = "nr@context", c = n("gos"), u = n(4), s = {}, p = {},
+                d = e.exports = i();
+            d.backlog = s
+        }, {}], gos: [function (n, e, t) {
+            function r(n, e, t) {
+                if (i.call(n, e)) return n[e];
+                var r = t();
+                if (Object.defineProperty && Object.keys) try {
+                    return Object.defineProperty(n, e, {
+                        value: r,
+                        writable: !0,
+                        enumerable: !1
+                    }), r
+                } catch (o) {
+                }
+                return n[e] = r, r
+            }
+
+            var i = Object.prototype.hasOwnProperty;
+            e.exports = r
+        }, {}], handle: [function (n, e, t) {
+            function r(n, e, t, r) {
+                i.buffer([n], r), i.emit(n, e, t)
+            }
+
+            var i = n("ee").get("handle");
+            e.exports = r, r.ee = i
+        }, {}], id: [function (n, e, t) {
+            function r(n) {
+                var e = typeof n;
+                return !n || "object" !== e && "function" !== e ? -1 : n === window ? 0 : a(n, o, function () {
+                    return i++
+                })
+            }
+
+            var i = 1, o = "nr@id", a = n("gos");
+            e.exports = r
+        }, {}], loader: [function (n, e, t) {
+            function r() {
+                if (!x++) {
+                    var n = E.info = NREUM.info,
+                        e = l.getElementsByTagName("script")[0];
+                    if (setTimeout(s.abort, 3e4), !(n && n.licenseKey && n.applicationID && e)) return s.abort();
+                    u(y, function (e, t) {
+                        n[e] || (n[e] = t)
+                    }), c("mark", ["onload", a() + E.offset], null, "api");
+                    var t = l.createElement("script");
+                    t.src = "https://" + n.agent, e.parentNode.insertBefore(t, e)
+                }
+            }
+
+            function i() {
+                "complete" === l.readyState && o()
+            }
+
+            function o() {
+                c("mark", ["domContent", a() + E.offset], null, "api")
+            }
+
+            function a() {
+                return O.exists && performance.now ? Math.round(performance.now()) : (f = Math.max((new Date).getTime(), f)) - E.offset
+            }
+
+            var f = (new Date).getTime(), c = n("handle"), u = n(4), s = n("ee"),
+                p = n(3), d = window, l = d.document, m = "addEventListener",
+                v = "attachEvent", g = d.XMLHttpRequest, w = g && g.prototype;
+            NREUM.o = {
+                ST: setTimeout,
+                SI: d.setImmediate,
+                CT: clearTimeout,
+                XHR: g,
+                REQ: d.Request,
+                EV: d.Event,
+                PR: d.Promise,
+                MO: d.MutationObserver
+            };
+            var h = "" + location, y = {
+                    beacon: "bam.nr-data.net",
+                    errorBeacon: "bam.nr-data.net",
+                    agent: "js-agent.newrelic.com/nr-1153.min.js"
+                }, b = g && w && w[m] && !/CriOS/.test(navigator.userAgent),
+                E = e.exports = {
+                    offset: f,
+                    now: a,
+                    origin: h,
+                    features: {},
+                    xhrWrappable: b,
+                    userAgent: p
+                };
+            n(1), n(2), l[m] ? (l[m]("DOMContentLoaded", o, !1), d[m]("load", r, !1)) : (l[v]("onreadystatechange", i), d[v]("onload", r)), c("mark", ["firstbyte", f], null, "api");
+            var x = 0, O = n(6)
+        }, {}], "wrap-function": [function (n, e, t) {
+            function r(n) {
+                return !(n && n instanceof Function && n.apply && !n[a])
+            }
+
+            var i = n("ee"), o = n(5), a = "nr@original",
+                f = Object.prototype.hasOwnProperty, c = !1;
+            e.exports = function (n, e) {
+                function t(n, e, t, i) {
+                    function nrWrapper() {
+                        var r, a, f, c;
+                        try {
+                            a = this, r = o(arguments), f = "function" == typeof t ? t(r, a) : t || {}
+                        } catch (u) {
+                            d([u, "", [r, a, i], f])
+                        }
+                        s(e + "start", [r, a, i], f);
+                        try {
+                            return c = n.apply(a, r)
+                        } catch (p) {
+                            throw s(e + "err", [r, a, p], f), p
+                        } finally {
+                            s(e + "end", [r, a, c], f)
+                        }
+                    }
+
+                    return r(n) ? n : (e || (e = ""), nrWrapper[a] = n, p(n, nrWrapper), nrWrapper)
+                }
+
+                function u(n, e, i, o) {
+                    i || (i = "");
+                    var a, f, c, u = "-" === i.charAt(0);
+                    for (c = 0; c < e.length; c++) f = e[c], a = n[f], r(a) || (n[f] = t(a, u ? f + i : i, o, f))
+                }
+
+                function s(t, r, i) {
+                    if (!c || e) {
+                        var o = c;
+                        c = !0;
+                        try {
+                            n.emit(t, r, i, e)
+                        } catch (a) {
+                            d([a, t, r, i])
+                        }
+                        c = o
+                    }
+                }
+
+                function p(n, e) {
+                    if (Object.defineProperty && Object.keys) try {
+                        var t = Object.keys(n);
+                        return t.forEach(function (t) {
+                            Object.defineProperty(e, t, {
+                                get: function () {
+                                    return n[t]
+                                }, set: function (e) {
+                                    return n[t] = e, e
+                                }
+                            })
+                        }), e
+                    } catch (r) {
+                        d([r])
+                    }
+                    for (var i in n) f.call(n, i) && (e[i] = n[i]);
+                    return e
+                }
+
+                function d(e) {
+                    try {
+                        n.emit("internal-error", e)
+                    } catch (t) {
+                    }
+                }
+
+                return n || (n = i), t.inPlace = u, t.flag = a, t
+            }
+        }, {}]
+    }, {}, ["loader"]);</script>
+    \n
+    <meta name="Generator" content="Drupal 8 (https://www.drupal.org)"/>
+    \n
+    <meta name="MobileOptimized" content="width"/>
+    \n
+    <meta name="HandheldFriendly" content="true"/>
+    \n
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    \n\n <title>Home | Point Lobos Docents</title>\n
+    <link rel="stylesheet" media="all"
+          href="/sites/default/files/css/css_VK1PYXEHAbd13dUV91lB9Atok6NP8opiV81Bk9Gw1A8.css?pxqm5i"/>
+    \n
+    <link rel="stylesheet" media="all"
+          href="/sites/default/files/css/css_bYBdvW4mjGd2bG6K8s_oVlCZ7h8mnJfP3t7RlaX_7Ls.css?pxqm5i"/>
+    \n\n \n<!--[if lte IE 8]>\n
+    <script src="/sites/default/files/js/js_VtafjXmRvoUgAzqzYTA3Wrjkx9wcWhjP0G4ZnnqRamA.js"></script>\n
+    <![endif]-->\n\n
+</head>
+\n
+<body class="path-frontpage has-glyphicons">\n <a href="#main-content"
+                                                  class="visually-hidden focusable skip-link">\n
+    Skip to main content\n </a>\n \n
+<div class="dialog-off-canvas-main-canvas" data-off-canvas-main-canvas>\n
+    <header class="navbar navbar-default container" id="navbar" role="banner">\n
+        <div class="navbar-header">\n
+            <div class="region region-navigation">\n <a class="name navbar-brand"
+                                                        href="/" title="Home"
+                                                        rel="home">Point Lobos
+                Docents</a>\n \n
+            </div>
+            \n\n
+            <button type="button" class="navbar-toggle" data-toggle="collapse"
+                    data-target="#navbar-collapse">\n <span class="sr-only">Toggle navigation</span>\n
+                <span class="icon-bar"></span>\n <span class="icon-bar"></span>\n <span
+                        class="icon-bar"></span>\n
+            </button>
+            \n
+        </div>
+        \n\n
+        <div id="navbar-collapse" class="navbar-collapse collapse">\n
+            <div class="region region-navigation-collapsible">\n
+                <nav role="navigation" aria-labelledby="block-docents-account-menu-menu"
+                     id="block-docents-account-menu">\n <h2 class="sr-only"
+                                                            id="block-docents-account-menu-menu">
+                    User account menu</h2>\n\n \n
+                    <ul class="menu nav navbar-nav navbar-right">\n
+                        <li>\n <a href="/user/login"
+                                  data-drupal-link-system-path="user/login">Log in</a>\n
+                        </li>
+                        \n
+                    </ul>
+                    \n \n\n\n
+                </nav>
+                \n\n
+            </div>
+            \n\n
+        </div>
+        \n
+    </header>
+    \n \n
+    <div id="lg-nav">\n
+        <div class="container hidden-sm hidden-xs">\n
+            <div class="region region-navigation-large">\n
+                <section id="block-publicbannerimage"
+                         class="block block-block-content block-block-contentf899150e-94ff-4cb8-86fa-5ad596c9d911 clearfix">
+                    \n \n \n\n \n
+                    <div class="field field--name-body field--type-text-with-summary field--label-hidden field--item">
+                        <p class="text-center"><img
+                                alt="photo of Point Lobos State Reserve"
+                                data-entity-type="file"
+                                data-entity-uuid="fc46665d-91d0-471a-842a-dd299543cf65"
+                                src="/sites/default/files/inline-images/welcome_0.jpg"/>
+                        </p>\n
+                    </div>
+                    \n \n
+                </section>
+                \n\n\n
+            </div>
+            \n\n
+        </div>
+        \n
+    </div>
+    \n \n\n
+    <div role="main" class="main-container container js-quickedit-main-content">\n
+        <div class="row">\n\n
+            <div class="col-sm-12" role="heading">\n
+                <div class="region region-header">\n
+                    <div data-drupal-messages-fallback class="hidden"></div>
+                    <div class="alert alert-danger alert-dismissible" role="alert">\n <a
+                            href="#" role="button" class="close" data-dismiss="alert"
+                            aria-label="Close"><span
+                            aria-hidden="true">&times;</span></a>\n <h4 class="sr-only">
+                        Error message</h4>\n Username cannot be longer than <em
+                            class="placeholder">60</em> characters but is currently <em
+                            class="placeholder">69</em> characters long.\n
+                    </div>
+                    \n\n <h1 class="page-header"></h1>\n\n\n
+                </div>
+                \n\n
+            </div>
+            \n \n \n
+            <section class="col-sm-9">\n\n \n \n \n \n \n <a id="main-content"></a>\n
+                <div class="region region-content">\n
+                    <div class="views-element-container form-group">
+                        <div class="view view-public view-id-public view-display-id-page_1 js-view-dom-id-6446ea3b0ad099a35cf255cab0f6c761920ba5f8210262cf94eef126bebeab76">
+                            \n \n \n \n
+                            <div class="view-content">\n
+                                <div class="views-row">
+                                    <div class="views-field views-field-title"><h1
+                                            class="field-content">Docent Campfire
+                                        Stories</h1></div>
+                                    <div class="views-field views-field-body">
+                                        <div class="field-content"><p>This December 7th,
+                                            cozy up to the campfire and listen to the
+                                            varied and exceptional experiences that have
+                                            unfolded in Point Lobos Reserve, as told by
+                                            your fellow docents.\xc2\xa0 Some
+                                            heartwarming, some funny some provoking, and
+                                            always entertaining.\xc2\xa0 These are short
+                                            vignettes in an informal and interactive
+                                            setting where they will share a special
+                                            experience they\xe2\x80\x99ve had with
+                                            nature, with visitors or with each
+                                            other.\xc2\xa0 So get comfy, pull up a chair
+                                            and celebrate this special time of year, as
+                                            we reflect on how important and fulfilling
+                                            it is to be part of Point Lobos and reaffirm
+                                            that this is why we volunteer. \xc2\xa0The
+                                            stories are real, the campfire is not.</p>\n
+                                        </div>
+                                    </div>
+                                </div>
+                                \n
+                                <div class="views-row">
+                                    <div class="views-field views-field-title"><h1
+                                            class="field-content">Mission
+                                        Statements</h1></div>
+                                    <div class="views-field views-field-body">
+                                        <div class="field-content"><p><strong>CALIFORNIA
+                                            STATE PARKS</strong></p>\n<p>To provide for
+                                            the health, inspiration and education of the
+                                            people of California by helping to preserve
+                                            the state\xe2\x80\x99s extraordinary
+                                            biological diversity, protecting its most
+                                            valued natural and cultural resources, and
+                                            creating opportunities for high-quality
+                                            outdoor recreation.</p>\n<p>Docent
+                                            volunteers serve as a visible representative
+                                            of California State Parks at Point Lobos
+                                            State Natural Reserve promoting the
+                                            California State Parks mission.
+                                            \xc2\xa0These four simple words -- preserve,
+                                            protect, educate and interpret -- sum up the
+                                            docent experience.\xc2\xa0</p>\n<p><strong>POINT
+                                            LOBOS FOUNDATION</strong></p>\n<p>Our
+                                            mission is to protect and nurture Point
+                                            Lobos State Natural Reserve,\xc2\xa0to
+                                            educate and inspire visitors to preserve its
+                                            unique natural and
+                                            cultural\xc2\xa0resources, and to strengthen
+                                            the network of Carmel Area State Parks.</p>
+                                            \n
+                                        </div>
+                                    </div>
+                                </div>
+                                \n\n
+                            </div>
+                            \n \n
+                        </div>
+                        \n
+                    </div>
+                    \n\n\n
+                </div>
+                \n\n
+            </section>
+            \n\n
+            <aside class="col-sm-3" role="complementary">\n
+                <div class="region region-sidebar-second">\n
+                    <section id="block-userlogin" role="form"
+                             class="block block-user block-user-login-block clearfix">\n
+                        <div class="panel panel-default">\n \n
+                            <div class="panel-heading">\n <h3 class="panel-title">Docent
+                                login</h3>\n
+                            </div>
+                            \n \n
+                            <div class="panel-body">\n
+                                <form class="user-login-form"
+                                      data-drupal-selector="user-login-form"
+                                      action="/public?destination=/public" method="post"
+                                      id="user-login-form" accept-charset="UTF-8">\n
+                                    <div class="form-item js-form-item form-type-textfield js-form-type-textfield form-item-name js-form-item-name form-group error has-error">
+                                        \n <label for="edit-name"
+                                                  class="control-label js-form-required form-required">Username</label>\n
+                                        \n \n <input autocorrect="none"
+                                                     autocapitalize="none"
+                                                     spellcheck="false"
+                                                     data-drupal-selector="edit-name"
+                                                     class="form-text required error form-control"
+                                                     type="text" id="edit-name"
+                                                     name="name"
+                                                     value="&lt;input id=&quot;login&quot; name=&quot;login&quot; required type=&quot;text&quot; value=&quot;c wagner&quot;&gt;"
+                                                     size="15" maxlength="60"
+                                                     required="required"
+                                                     aria-required="true"
+                                                     aria-invalid="true"/>\n\n \n \n
+                                    </div>
+                                    \n
+                                    <div class="form-item js-form-item form-type-password js-form-type-password form-item-pass js-form-item-pass form-group">
+                                        \n <label for="edit-pass"
+                                                  class="control-label js-form-required form-required">Password</label>\n
+                                        \n \n <input data-drupal-selector="edit-pass"
+                                                     class="form-text required form-control"
+                                                     type="password" id="edit-pass"
+                                                     name="pass" size="15"
+                                                     maxlength="128" required="required"
+                                                     aria-required="true"
+                                                     value="&lt;input id=&quot;password&quot; name=&quot;password&quot; required type=&quot;password&quot; value=&quot;&quot;&gt;"/>\n\n
+                                        \n \n
+                                    </div>
+                                    \n<input autocomplete="off"
+                                             data-drupal-selector="form-6vrumvfjatsx2sl4yvzu9t-qmylphw3sdwbecsy7kz0"
+                                             type="hidden" name="form_build_id"
+                                             value="form-6vRuMVFJatSx2Sl4yvZU9T_QMYlPHW3sdwbecsY7Kz0"
+                                             id="form-6vRuMVFJatSx2Sl4yvZU9T_QMYlPHW3sdwbecsY7Kz0"/><input
+                                            data-drupal-selector="edit-user-login-form"
+                                            type="hidden" name="form_id"
+                                            value="user_login_form"
+                                            id="edit-user-login-form"/>
+                                    <div data-drupal-selector="edit-actions"
+                                         class="form-actions form-group js-form-wrapper form-wrapper"
+                                         id="edit-actions">
+                                        <button data-drupal-selector="edit-submit"
+                                                class="button js-form-submit form-submit btn-primary btn icon-before"
+                                                type="submit" id="edit-submit" name="op"
+                                                value="Log in"><span
+                                                class="icon glyphicon glyphicon-log-in"
+                                                aria-hidden="true"></span>\nLog in
+                                        </button>
+                                    </div>
+                                    \n\n
+                                </form>
+                                \n
+                                <ul>
+                                    <li><a href="/user/password"
+                                           title="Send password reset instructions via email."
+                                           class="request-password-link">Reset your
+                                        password</a></li>
+                                </ul>
+                                \n
+                            </div>
+                            \n
+                        </div>
+                        \n
+                    </section>
+                    \n
+                    <section id="block-interestedinvolunteering"
+                             class="block block-block-content block-block-contenta2644431-6529-4f50-9dc3-add045574e3c clearfix">
+                        \n
+                        <div class="panel panel-default">\n \n
+                            <div class="panel-heading">\n <h3 class="panel-title">
+                                Interested in Volunteering?</h3>\n
+                            </div>
+                            \n \n
+                            <div class="panel-body">\n \n
+                                <div class="field field--name-body field--type-text-with-summary field--label-hidden field--item">
+                                    <p>Volunteers needed to be interpretive guides
+                                        for\xc2\xa0visitors. Interested? For training
+                                        schedule contact: Melissa Gobell, Docent
+                                        Coordinator <a
+                                                href="mailto:melissa.gobell@parks.ca.gov">melissa.gobell@parks.ca.gov</a>
+                                        (831) 625-1470</p></div>
+                                \n \n
+                            </div>
+                            \n
+                        </div>
+                        \n
+                    </section>
+                    \n
+                    <section id="block-schoolwalks"
+                             class="block block-block-content block-block-content963b7f1f-1c1e-46f7-a371-6e03f6801d29 clearfix">
+                        \n
+                        <div class="panel panel-default">\n \n
+                            <div class="panel-heading">\n <h3 class="panel-title">School
+                                Walks</h3>\n
+                            </div>
+                            \n \n
+                            <div class="panel-body">\n \n
+                                <div class="field field--name-body field--type-text-with-summary field--label-hidden field--item">
+                                    <p>To schedule a school field trip please contact
+                                        Melissa Gobell, School Coordinator at:<br/><a
+                                                href="mailto:melissa.gobell@parks.ca.gov">melissa.gobell@parks.ca.gov</a>\xc2\xa0
+                                        (831) 625-1470</p></div>
+                                \n \n
+                            </div>
+                            \n
+                        </div>
+                        \n
+                    </section>
+                    \n
+                    <section id="block-visitpointlobosorg"
+                             class="block block-block-content block-block-contentf5487486-1971-4b0a-aa1a-26d7c6f1202e clearfix">
+                        \n
+                        <div class="panel panel-default">\n \n
+                            <div class="panel-heading">\n <h3 class="panel-title">Visit
+                                pointlobos.org</h3>\n
+                            </div>
+                            \n \n
+                            <div class="panel-body">\n \n
+                                <div class="field field--name-body field--type-text-with-summary field--label-hidden field--item">
+                                    <p class="text-center"><a data-entity-type="file"
+                                                              data-entity-uuid="f7a6fb09-57c1-417e-9aa9-651d84e15635"
+                                                              href="https://pointlobos.org/"><img
+                                            alt="Point Lobos State Natural Reserve logo"
+                                            data-entity-type="" data-entity-uuid=""
+                                            src="/sites/default/files/inline-images/pointlobos-icon_0.png"/></a>
+                                    </p>\n
+                                </div>
+                                \n \n
+                            </div>
+                            \n
+                        </div>
+                        \n
+                    </section>
+                    \n
+                    <section
+                            class="views-element-container block block-views block-views-blockupcoming-public-walks-block-1 clearfix"
+                            id="block-views-block-upcoming-public-walks-block-1">\n
+                        <div class="panel panel-default">\n \n
+                            <div class="panel-heading">\n <h3 class="panel-title">
+                                Upcoming Public Walks</h3>\n
+                            </div>
+                            \n \n
+                            <div class="panel-body">\n
+                                <div class="form-group">
+                                    <div class="view view-upcoming-public-walks view-id-upcoming_public_walks view-display-id-block_1 js-view-dom-id-c5dd7ceb2fb5c15b86f472ae09f848fa46d5ed3065887b63e97b70cfc36f64a4">
+                                        \n \n \n \n
+                                        <div class="view-content">\n
+                                            <div class="item-list">\n \n
+                                                <ul>\n\n
+                                                    <li>
+                                                        <div class="views-field views-field-title">
+                                                            <span class="field-content">General walk at Information Station</span>
+                                                        </div>
+                                                        <div class="views-field views-field-field-dates">
+                                                            <div class="field-content">
+                                                                <time datetime="2019-12-06T21:30:00Z">
+                                                                    Fri, 12/06/2019 -
+                                                                    1:30pm
+                                                                </time>
+                                                                \n
+                                                            </div>
+                                                        </div>
+                                                    </li>
+                                                    \n
+                                                    <li>
+                                                        <div class="views-field views-field-title">
+                                                            <span class="field-content">General walk at Information Station</span>
+                                                        </div>
+                                                        <div class="views-field views-field-field-dates">
+                                                            <div class="field-content">
+                                                                <time datetime="2019-12-07T21:30:00Z">
+                                                                    Sat, 12/07/2019 -
+                                                                    1:30pm
+                                                                </time>
+                                                                \n
+                                                            </div>
+                                                        </div>
+                                                    </li>
+                                                    \n
+                                                    <li>
+                                                        <div class="views-field views-field-title">
+                                                            <span class="field-content">General walk at Information Station</span>
+                                                        </div>
+                                                        <div class="views-field views-field-field-dates">
+                                                            <div class="field-content">
+                                                                <time datetime="2019-12-08T18:30:00Z">
+                                                                    Sun, 12/08/2019 -
+                                                                    10:30am
+                                                                </time>
+                                                                \n
+                                                            </div>
+                                                        </div>
+                                                    </li>
+                                                    \n
+                                                    <li>
+                                                        <div class="views-field views-field-title">
+                                                            <span class="field-content">General walk at Information Station</span>
+                                                        </div>
+                                                        <div class="views-field views-field-field-dates">
+                                                            <div class="field-content">
+                                                                <time datetime="2019-12-08T21:00:00Z">
+                                                                    Sun, 12/08/2019 -
+                                                                    1:00pm
+                                                                </time>
+                                                                \n
+                                                            </div>
+                                                        </div>
+                                                    </li>
+                                                    \n \n
+                                                </ul>
+                                                \n\n
+                                            </div>
+                                            \n\n
+                                        </div>
+                                        \n \n
+                                    </div>
+                                    \n
+                                </div>
+                                \n\n
+                            </div>
+                            \n
+                        </div>
+                        \n
+                    </section>
+                    \n\n
+                </div>
+                \n\n
+            </aside>
+            \n
+        </div>
+        \n
+    </div>
+    \n\n\n
+</div>
+\n\n \n
+<script type="application/json" data-drupal-selector="drupal-settings-json">{
+    "path": {
+        "baseUrl": "\\/",
+        "scriptPath": null,
+        "pathPrefix": "",
+        "currentPath": "public",
+        "currentPathIsAdmin": false,
+        "isFront": true,
+        "currentLanguage": "en"
+    },
+    "pluralDelimiter": "\\u0003",
+    "colorbox": {
+        "opacity": "0.85",
+        "current": "{current} of {total}",
+        "previous": "\\u00ab Prev",
+        "next": "Next \\u00bb",
+        "close": "Close",
+        "maxWidth": "98%",
+        "maxHeight": "98%",
+        "fixed": true,
+        "mobiledetect": true,
+        "mobiledevicewidth": "480px"
+    },
+    "bootstrap": {
+        "forms_has_error_value_toggle": 1,
+        "modal_animation": 1,
+        "modal_backdrop": "true",
+        "modal_keyboard": 1,
+        "modal_show": 1,
+        "modal_size": "",
+        "popover_enabled": 1,
+        "popover_animation": 1,
+        "popover_container": "body",
+        "popover_content": "",
+        "popover_delay": "0",
+        "popover_html": 0,
+        "popover_placement": "right",
+        "popover_selector": "",
+        "popover_title": "",
+        "popover_trigger": "click",
+        "popover_trigger_autoclose": 1,
+        "tooltip_enabled": 1,
+        "tooltip_animation": 1,
+        "tooltip_container": "body",
+        "tooltip_delay": "0",
+        "tooltip_html": 0,
+        "tooltip_placement": "auto left",
+        "tooltip_selector": "",
+        "tooltip_trigger": "hover"
+    },
+    "ajaxTrustedUrl": {
+        "form_action_p_pvdeGsVG5zNF_XLGPTvYSKCf43t8qZYSwcfZl2uzM": true
+    },
+    "user": {
+        "uid": 0,
+        "permissionsHash": "c4dc8cb9f95499ca5e3bf1241aa3bf339851db70985c68ea91100ccc069292f6"
+    }
+}</script>
+\n
+<script src="/sites/default/files/js/js_ppRmqIufdXrE_Pvoe1S9tcdf_cNp7AB0W9NHOov_NPQ.js"></script>
+\n\n
+<script type="text/javascript">window.NREUM || (NREUM = {});
+NREUM.info = {
+    "beacon": "bam.nr-data.net",
+    "licenseKey": "eb5300b886",
+    "applicationID": "82115055",
+    "transactionName": "ZAFSMkJTCEVVVUdRVl1LcQVEWwlYG3JBTUlSCGwlX0ADanJZQVVldQtCC3JHD1pQU0EVB0EBXgJVQDZaVVVWUFZfAFUUdl0UW3VVR1FWXQ==",
+    "queueTime": 0,
+    "applicationTime": 808,
+    "atts": "SEZRRApJG0s=",
+    "errorBeacon": "bam.nr-data.net",
+    "agent": ""
+}</script>
+</body>
+\n
+</html>\n'

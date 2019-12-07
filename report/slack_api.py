@@ -72,7 +72,7 @@ def send_update(response_url, text, replace_original=False, delete_original=Fals
 
 def post_ephemeral_message(channel, user, payload):
     if isinstance(payload, list):
-        content = {"text": "a report", "blocks": payload}
+        content = {"text": "Here ya go!", "blocks": payload}
     else:
         content = {"text": payload}
     content.update(channel=channel, user=user, as_user=True)
@@ -83,7 +83,7 @@ def post_ephemeral_message(channel, user, payload):
 def post_message(channel, payload):
     """ PostMessage - 'channel' can be user ID. """
     if isinstance(payload, list):
-        content = {"text": "a report", "blocks": payload}
+        content = {"text": "Here ya go!", "blocks": payload}
     else:
         content = {"text": payload}
     content.update(channel=channel, as_user=True)

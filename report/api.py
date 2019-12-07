@@ -166,40 +166,6 @@ def handle_file(event):
             finfo["url_private"], finfo["channels"]
         )
     )
-
-    """
-    Not sure this is a good idea - we have explicit ways to add photos.
-    app = asyncev.wapp
-    with app.app_context():
-        # Look for existing trail report from user and channel - else - ignore
-        matched = []
-        reports = app.report.fetch_all(limit=50)
-
-        for r in reports:
-            if (
-                r.reporter_slack_id == event["user_id"]
-                and r.channel == event["channel_id"]
-                and (datetime.datetime.utcnow() - r.update_datetime)
-                < datetime.timedelta(minutes=5)
-            ):
-                matched.append(r)
-        if len(matched) != 1:
-            # Lets make sure we don't spam folks with info..
-            logger.warning(
-                "No or too many report(s) matches for file user {} channel {}".format(
-                    event["user_id"], event["channel_id"]
-                )
-            )
-            # TODO - but we need to ive feedback - probably need to just check channel?
-            return "", 200
-        else:
-            post_ephemeral_message(
-                event["channel_id"],
-                event["user_id"],
-                "Retrieving file and grabbing GPS info.. thanks.",
-            )
-            report.add_photo(app, finfo, matched[0])
-    """
     return {}
 
 
