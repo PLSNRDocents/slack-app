@@ -4,16 +4,19 @@ import logging
 import threading
 import os
 
-from flask import Flask
+from flask import Flask, redirect, url_for
+from flask_admin import Admin
 
 from api import api
 import asyncev
 from constants import LOG_FORMAT, DATE_FMT
 import dynamo
+from proxy_auth import PLAdminIndexView, init_login
 import s3
 from slack_api import get_bot_info
+from webview import ReportModelView
 
-REQUIRED_CONFIG = ["SIGNING_SECRET", "BOT_TOKEN"]
+REQUIRED_CONFIG = ["SIGNING_SECRET", "BOT_TOKEN", "SECRET_KEY"]
 
 
 def get_action_values(info):
@@ -62,6 +65,20 @@ def create_app():
     app.s3 = s3.S3Storage(app.config)
     app.s3.init()
 
+    # Flask-Login
+    init_login(app)
+
+    # Flask-admin
+    app.config["FLASK_ADMIN_SWATCH"] = "cerulean"
+    admin = Admin(
+        name="PLSNR-Docent",
+        template_mode="bootstrap3",
+        index_view=PLAdminIndexView(),
+        base_template="pl_master.html",
+    )
+    admin.init_app(app)
+    admin.add_view(ReportModelView(app.report, name="Reports", endpoint="reports"))
+
     @app.before_first_request
     def start_async():
         threading.Thread(target=lambda: asyncev.run_loop(asyncev.event_loop)).start()
@@ -75,6 +92,10 @@ def create_app():
     @app.before_first_request
     def whoami():
         get_bot_info()
+
+    @app.route("/")
+    def index():
+        return redirect(url_for("admin.index"))
 
     return app
 

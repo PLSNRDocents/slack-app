@@ -98,16 +98,12 @@ def talk_to_me(event_id, event):
                         "It appears you are trying to create a report -"
                         " use new report",
                     )
-                # Options:
-                # Whether to return reports with any status
-                active_only = True
-                if len(whatsup) > 2 and whatsup[2].startswith("any"):
-                    active_only = False
+
                 blocks = []
                 blocks.append(divider_block())
                 blocks.append(text_block("*Current Reports:*"))
 
-                reports = app.report.fetch_all(active=active_only)
+                reports = app.report.fetch(filters=app.report.ACTIVE_FILTER)
                 if reports:
                     for r in reports:
                         blocks.append(divider_block())
@@ -209,14 +205,6 @@ def talk_to_me(event_id, event):
                         [("Trail", TYPE_TRAIL), ("Disturbance", TYPE_DISTURBANCE)],
                     )
                 )
-                # debugging why I cant delete other messages.
-                convos = get(
-                    "conversations.list",
-                    params={"types": "public_channel," " private_channel, mpim, im"},
-                )
-                for c in convos["channels"]:
-                    if c["id"] == event["channel"]:
-                        logger.info("Channel info: {}".format(json.dumps(c, indent=4)))
                 delete_message(event["channel"], event["ts"])
 
                 pme(event, b)

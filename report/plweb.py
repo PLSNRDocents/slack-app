@@ -24,8 +24,15 @@ def get_session():
     return SESSION
 
 
-def login(username, password):
-    rv = get_session().get("{url}".format(url=URL, name=username))
+def login(session, username, password):
+    # Always clear session cookie on newly attempted login
+    # Since we use this routine as part of proxying authz for the webview
+    # it's easy to make sure we never keep an old session around.
+    try:
+        session.cookies.clear(domain=".docents.plsnr.org")
+    except KeyError:
+        pass
+    rv = session.get("{url}".format(url=URL))
     hc = BeautifulSoup(rv.text, features="html.parser")
     form_info = parse_form_data(hc, ["form_build_id", "form_id"])
     form_data = {
@@ -36,13 +43,24 @@ def login(username, password):
         "form_id": form_info["form_id"],
     }
     # this should fill cookie jar
-    rv = get_session().post(
+    logger.info("Logging into plweb site as user {}".format(username))
+    rv = session.post(
         "{url}".format(url=URL),
         data=form_data,
         headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "*/*"},
         allow_redirects=False,
     )
     rv.raise_for_status()
+
+    # Only way to verify log in is via session cookie
+    for cookie in rv.cookies:
+        if cookie.name.startswith("SSESS") and cookie.domain == ".docents.plsnr.org":
+            # worked!
+            return True
+    logger.warning(
+        "Failed to login to plweb site as {} - no session cookie found".format(username)
+    )
+    return False
 
 
 def parse_form_data(hc: BeautifulSoup, needed=None):
@@ -298,7 +316,11 @@ def whoat(when, where="all"):
         if rv.status_code == 403:
             # need to log in.
             logger.info("Logging in to PLSNR web site")
-            login(os.environ["PLSNR_USERNAME"], os.environ["PLSNR_PASSWORD"])
+            login(
+                get_session(),
+                os.environ["PLSNR_USERNAME"],
+                os.environ["PLSNR_PASSWORD"],
+            )
             rv = get_session().get("{url}/{ep}".format(url=URL, ep=cal_url))
         rv.raise_for_status()
         ans[info["title"]] = info["parser"](rv.text, when)
