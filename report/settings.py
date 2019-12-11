@@ -18,7 +18,6 @@ class DevSettings(Settings):
 
     S3_BUCKET = "plsnr-slack-test"
     AWS_PROFILE = "plsnr"
-    BOT_NAME = "docent-test"
 
     USE_DYNAMO = True
     DYNAMO_ENABLE_LOCAL = True
@@ -35,7 +34,6 @@ class AWSDevSettings(Settings):
     )
 
     S3_BUCKET = "plsnr-slack-test"
-    BOT_NAME = "docent"
 
     USE_DYNAMO = True
     DYNAMO_TABLE_SUFFIX = "-test"

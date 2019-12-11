@@ -25,14 +25,13 @@ from constants import (
 import plweb
 from quotes import QUOTES
 from slack_api import (
-    get,
     get_file_info,
     delete_message,
     post_ephemeral_message,
     user_to_name,
 )
 import utils
-from utils import text_block, divider_block, text_image, buttons_block
+from utils import convert_gps, text_block, divider_block, text_image, buttons_block
 
 
 logger = logging.getLogger(__name__)
@@ -402,27 +401,3 @@ def talk_to_me(event_id, event):
 
 def pme(event, text):
     post_ephemeral_message(event["channel"], event["user"], text)
-
-
-def convert_gps(gps):
-    """ Parse iphone compass app GPS coordinates: '36°33′0″ N  121°55′28″ W'
-    """
-    # 2 spaces between lat/lng
-    try:
-        lat, lng = gps.split("  ")
-        dlat = dms_to_dd(lat)
-        dlng = dms_to_dd(lng)
-        return dlat, dlng
-    except Exception:
-        return None, None
-
-
-def dms_to_dd(coords):
-    """ iphone uses some funky punctuation """
-    coords = " ".join(coords.split())
-    deg, minutes, seconds, direction = re.split(
-        "[°'\"\N{PRIME}\N{DOUBLE PRIME}]", coords
-    )
-    return (float(deg) + float(minutes) / 60 + float(seconds) / (60 * 60)) * (
-        -1 if direction.strip() in ["W", "S"] else 1
-    )

@@ -2,13 +2,16 @@
 
 import logging
 
-from flask import request, redirect, url_for
+from flask import current_app, request, redirect, url_for
 from flask_admin.model import BaseModelView
 from flask_admin.model.filters import BaseFilter
 from flask_login import current_user
+from markupsafe import Markup
 from wtforms import Form, StringField
 
 from dynamo import Report, ReportModel, attr_to_display
+
+from utils import convert_gps
 
 
 logger = logging.getLogger("webview")
@@ -121,6 +124,33 @@ def _fmtdate(view, context, model, name):
     return getattr(model, name).strftime("%b %-d %Y at %-H:%M")
 
 
+def _gps(v, c, model, name):
+    gps = getattr(model, name, None)
+    if gps:
+        dlat, dlng = convert_gps(gps)
+        if dlat and dlng:
+            return Markup(
+                '<a target="_blank" rel="noopener noreferrer" '
+                'href="https://www.google.com/maps/search/?api=1&query={dlat},{dlng}">'
+                "{text}</a>".format(dlat=dlat, dlng=dlng, text="Map")
+            )
+        else:
+            return gps
+
+
+def _photos(v, c, model, name):
+    photos = getattr(model, name, None)
+    if photos and len(photos) > 0:
+        url = "https://s3.us-east-1.amazonaws.com/{}/{}".format(
+            current_app.config["S3_BUCKET"], photos[0].s3_url
+        )
+        return Markup(
+            '<a target="_blank" rel="noopener noreferrer" '
+            "href={}>"
+            '<img src="{}" width="80" alt="photo"/></a>'.format(url, url)
+        )
+
+
 class ReportModelView(DDBModelView):
     can_create = False
     can_edit = False
@@ -159,9 +189,8 @@ class ReportModelView(DDBModelView):
         location=lambda v, c, m, p: attr_to_display(m, "location"),
         cross_trail=lambda v, c, m, p: attr_to_display(m, "cross_trail"),
         issues=lambda v, c, m, p: attr_to_display(m, "issues"),
-        photos=lambda v, c, m, p: "{} photo(s)".format(len(m.photos))
-        if m.photos
-        else None,
+        photos=_photos,
+        gps=_gps,
     )
     column_filters = ["location", "issues", "reporter", "kiosk_called"]
 

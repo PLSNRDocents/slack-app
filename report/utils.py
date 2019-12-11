@@ -2,6 +2,7 @@
 
 from dateutil import tz
 import datetime
+import re
 
 
 def text_block(text):
@@ -104,3 +105,27 @@ def at_cache_helper(which_day: datetime.datetime, where):
     lday = which_day.astimezone(tz=tz.gettz("America/Los_Angeles"))
     ckey = "{}:{}".format(lday.strftime("%Y%m%d"), where)
     return lday, ckey
+
+
+def convert_gps(gps):
+    """ Parse iphone compass app GPS coordinates: '36°33′0″ N  121°55′28″ W'
+    """
+    # 2 spaces between lat/lng
+    try:
+        lat, lng = gps.split("  ")
+        dlat = _dms_to_dd(lat)
+        dlng = _dms_to_dd(lng)
+        return dlat, dlng
+    except Exception:
+        return None, None
+
+
+def _dms_to_dd(coords):
+    """ iphone uses some funky punctuation """
+    coords = " ".join(coords.split())
+    deg, minutes, seconds, direction = re.split(
+        "[°'\"\N{PRIME}\N{DOUBLE PRIME}]", coords
+    )
+    return (float(deg) + float(minutes) / 60 + float(seconds) / (60 * 60)) * (
+        -1 if direction.strip() in ["W", "S"] else 1
+    )
