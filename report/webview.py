@@ -141,14 +141,17 @@ def _gps(v, c, model, name):
 def _photos(v, c, model, name):
     photos = getattr(model, name, None)
     if photos and len(photos) > 0:
-        url = "https://s3.us-east-1.amazonaws.com/{}/{}".format(
-            current_app.config["S3_BUCKET"], photos[0].s3_url
-        )
-        return Markup(
-            '<a target="_blank" rel="noopener noreferrer" '
-            "href={}>"
-            '<img src="{}" width="80" alt="photo"/></a>'.format(url, url)
-        )
+        markup = ""
+        for photo in photos:
+            url = "https://s3.us-east-1.amazonaws.com/{}/{}".format(
+                current_app.config["S3_BUCKET"], photo.s3_url
+            )
+            markup += Markup(
+                '<a target="_blank" rel="noopener noreferrer" '
+                "href={}>"
+                '<img src="{}" width="80" alt="photo"/></a>'.format(url, url)
+            )
+        return markup
 
 
 class ReportModelView(DDBModelView):

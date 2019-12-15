@@ -1,8 +1,8 @@
 # Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
 
-from io import BytesIO
 import os
-from tempfile import NamedTemporaryFile
+import shutil
+from tempfile import mkstemp
 
 
 from PIL import Image
@@ -11,29 +11,30 @@ import requests
 
 
 def add_photo(s3, finfo, rid):
-    # Assume called in app context.
-    im = fetch_image(finfo["url_private"])
+    fd, local_file = mkstemp(suffix="." + finfo["filetype"])
+    try:
+        # fetch and store locally
+        fetch_image(finfo["url_private"], local_file)
 
-    # fetch image, find GPS coordinates - note that IOS actually strips this
-    # so likely we won't find any.
-    exif_data = get_exif_data(im)
-    lat, lon = get_lat_lon(exif_data)
+        with Image.open(local_file) as im:
+            # find GPS coordinates - note that IOS actually strips this
+            # so likely we won't find any.
+            exif_data = get_exif_data(im)
+            lat, lon = get_lat_lon(exif_data)
 
-    # Save locally so can upload to S3
-    local_file = NamedTemporaryFile(suffix="." + finfo["filetype"])
-    im.save(local_file.name)
+        s3_finfo = s3.save(local_file, finfo["filetype"], finfo["mimetype"], rid)
+        return s3_finfo, lat, lon
+    finally:
+        os.close(fd)
+        os.remove(local_file)
 
-    s3_finfo = s3.save(local_file.name, finfo["filetype"], finfo["mimetype"], rid)
-    return s3_finfo, lat, lon
 
-
-def fetch_image(url) -> Image.Image:
+def fetch_image(url, local_file):
     headers = {"Authorization": "Bearer {}".format(os.environ["BOT_TOKEN"])}
-    r = requests.get(url, stream=True, headers=headers)
-    if r.status_code == 200:
-        image = Image.open(BytesIO(r.content))
-        return image
-    r.raise_for_status()
+    with requests.get(url, stream=True, headers=headers) as r:
+        r.raise_for_status()
+        with open(local_file, "w+b") as f:
+            shutil.copyfileobj(r.raw, f)
 
 
 def get_exif_data(image: Image):
