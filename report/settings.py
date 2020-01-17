@@ -10,6 +10,7 @@ class Settings:
     S3_VERIFY_BUCKET = False
 
     USE_DYNAMO = False
+    ENABLE_TRAIL_REPORT = False
 
 
 class DevSettings(Settings):
@@ -37,6 +38,15 @@ class AWSDevSettings(Settings):
 
     USE_DYNAMO = True
     DYNAMO_TABLE_SUFFIX = "-test"
+
+
+class AWSProdSettings(Settings):
+    EV_MODE = "zappa"
+
+    S3_BUCKET = "plsnr-slack-live"
+
+    USE_DYNAMO = True
+    DYNAMO_TABLE_SUFFIX = "-live"
 
 
 class AWSRDSSettings(DevSettings):

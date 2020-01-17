@@ -1,4 +1,4 @@
-# Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2020 by J. Christopher Wagner (jwag). All rights reserved.
 
 import json
 import logging
@@ -44,7 +44,7 @@ def open_trail_report_modal(trigger, state):
     )
     blocks.append(
         input_block(
-            "cross",
+            "cross_trail",
             "Nearest Cross Trail",
             select_element("value", "Select one", trail_options),
             optional=True,
@@ -131,7 +131,7 @@ def open_disturbance_report_modal(trigger, state):
     )
     blocks.append(
         input_block(
-            "cross",
+            "cross_trail",
             "Nearest Cross Trail",
             select_element("value", "Select one", trail_options),
             optional=True,

@@ -1,4 +1,4 @@
-# Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2020 by J. Christopher Wagner (jwag). All rights reserved.
 
 """
 Handle new 'Home' tab.
@@ -22,7 +22,10 @@ def handle_home(event):
         b = []
         b.append(text_block("Welcome"))
         b.append(divider_block())
-        b.append(buttons_block("HOMETRAILREP:0", [("Create Trail Report", TYPE_TRAIL)]))
+        if app.config["ENABLE_TRAIL_REPORT"]:
+            b.append(
+                buttons_block("HOMETRAILREP:0", [("Create Trail Report", TYPE_TRAIL)])
+            )
         b.append(
             buttons_block(
                 "HOMEDISTREP:0", [("Create Disturbance Report", TYPE_DISTURBANCE)]

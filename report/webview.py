@@ -1,8 +1,8 @@
-# Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2020 by J. Christopher Wagner (jwag). All rights reserved.
 
 import logging
 
-from flask import current_app, request, redirect, url_for
+from flask import current_app, render_template_string, request, redirect, url_for
 from flask_admin.model import BaseModelView
 from flask_admin.model.filters import BaseFilter
 from flask_login import current_user
@@ -70,6 +70,8 @@ class DDBModelView(BaseModelView):
             kiosk_called="kiosk_called",
             id="id",
             update_datetime="update_datetime",
+            create_datetime="create_datetime",
+            reporter="reporter",
         )
 
     def scaffold_form(self):
@@ -121,7 +123,10 @@ class DDBModelView(BaseModelView):
 
 
 def _fmtdate(view, context, model, name):
-    return getattr(model, name).strftime("%b %-d %Y at %-H:%M")
+    dt = render_template_string(
+        "{{ moment(date).format('lll') }}", date=getattr(model, name)
+    )
+    return Markup(dt)
 
 
 def _gps(v, c, model, name):
@@ -196,6 +201,8 @@ class ReportModelView(DDBModelView):
         gps=_gps,
     )
     column_filters = ["location", "issues", "reporter", "kiosk_called"]
+
+    column_labels = dict(create_datetime="Created", update_datetime="Last Updated")
 
     def __init__(self, report, *args, **kwargs):
         super().__init__(report, *args, **kwargs)

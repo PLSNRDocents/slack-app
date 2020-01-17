@@ -5,6 +5,7 @@ botocore~=1.12.251
 cachetools
 flask==1.1.1
 flask-admin~=1.5.3
+flask-moment~=0.9.0
 flask-login>=0.3.0
 flask-WTF>=0.14.2
 # flask-sqlalchemy==2.4.0

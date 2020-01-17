@@ -1,4 +1,30 @@
-# Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2020 by J. Christopher Wagner (jwag). All rights reserved.
+
+"""
+A Flask app that receives slack app calls and reacts.
+
+It also provides a flask-admin web interface for looking at submitted reports.
+It uses a proxy to the docent website for authn.
+
+To run locally - start dynamoDB:
+
+cd dynamodb_local_latest
+java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar -sharedDb
+
+Run ngrok:
+ngrok http 5002
+
+Start this app (report)
+If ngrok was killed/machine restarted - go to slack app console and replace
+the host name (event subscriptions and interactive components)
+
+# Updating AWS
+cd reports
+zappa update [dev|live]
+
+Note that secrets are stored in AWS - have to change them there.
+
+"""
 
 import logging
 import threading
@@ -6,6 +32,7 @@ import os
 
 from flask import Flask, redirect, url_for
 from flask_admin import Admin
+from flask_moment import Moment
 
 from api import api
 import asyncev
@@ -67,6 +94,7 @@ def create_app():
 
     # Flask-Login
     init_login(app)
+    app.moment = Moment(app)
 
     # Flask-admin
     app.config["FLASK_ADMIN_SWATCH"] = "cerulean"

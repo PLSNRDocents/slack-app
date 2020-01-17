@@ -19,5 +19,27 @@
             "function": "tasks.prime_cache",
             "expression": "rate(2 hours)"
         }]
+    },
+
+    "live": {
+        "app_function": "wsgi.app",
+        "profile_name": "plsnr",
+        "project_name": "plsnr-slack-app",
+        "runtime": "python3.7",
+        "s3_bucket": "zappa-plsnr-live",
+        "keep_warm": true,
+        "delete_local_zip": true,
+        "num_retained_versions": 20,
+        "exclude": ["*.gz", "*.zip", ".pytest_cache/*"],
+        "environment_variables": {
+            "PLSNRENV": "AWSProd"
+        },
+        "timeout_seconds": 60,
+        "async_source": "lambda",
+        "async_resources": false,
+        "events": [{
+            "function": "tasks.prime_cache",
+            "expression": "rate(2 hours)"
+        }]
     }
 }
