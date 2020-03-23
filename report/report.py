@@ -5,7 +5,6 @@ import logging
 
 import asyncev
 from constants import (
-    KIOSK_RESOLVED_UNKNOWN,
     STATUS_PLACEHOLDER,
     TRAIL_VALUE_2_DESC,
     TYPE_TRAIL,
@@ -18,6 +17,17 @@ from utils import input_block, pt_input_element, select_element
 
 
 logger = logging.getLogger("report")
+
+
+def _parse_values(field, values):
+    if field in values:
+        rv = values[field]["value"]
+        if rv["type"] == "static_select":
+            if "selected_option" in rv:
+                return rv["selected_option"]["value"]
+        elif "value" in rv:
+            return rv["value"]
+    return None
 
 
 def open_trail_report_modal(trigger, state):
@@ -92,6 +102,7 @@ def open_disturbance_report_modal(trigger, state):
     trail_options = []
     for n, d in TRAIL_VALUE_2_DESC.items():
         trail_options.append((d, n))
+    """
     valid_dist_issues = [
         "off",
         "eat",
@@ -113,13 +124,27 @@ def open_disturbance_report_modal(trigger, state):
     disturbance_issues = []
     for n in valid_dist_issues:
         disturbance_issues.append((ISSUES_2_DESC[n], n))
+    """
+    app = asyncev.wapp
+    with app.app_context():
+        wildlife_issues = app.report.get_wildlife_issue_list()
+        other_issues = app.report.get_other_issue_list()
 
     blocks = []
     blocks.append(
         input_block(
-            "issues",
-            "Disturbance",
-            select_element("value", "Select one", disturbance_issues),
+            "wildlife_issues",
+            "Wildlife Disturbance",
+            select_element("value", "Select one", wildlife_issues),
+            optional=True,
+        )
+    )
+    blocks.append(
+        input_block(
+            "other_issues",
+            "Other Disturbance",
+            select_element("value", "Select one", other_issues),
+            optional=True,
         )
     )
     blocks.append(
@@ -147,18 +172,6 @@ def open_disturbance_report_modal(trigger, state):
                 [("Yes", "yes"), ("No", "no")],
                 initial_option=("No", "no"),
             ),
-        )
-    )
-    blocks.append(
-        input_block(
-            "kiosk_resolution",
-            "Did kiosk/SP personnel resolve issue?",
-            select_element(
-                "value",
-                "Select One",
-                [("Yes", "yes"), ("No", "no"), ("Unsure", KIOSK_RESOLVED_UNKNOWN)],
-            ),
-            optional=True,
         )
     )
     blocks.append(
@@ -231,18 +244,20 @@ def handle_report_submit_modal(rjson):
             )
         else:
             # This is from Home button - no report started yet
-            nr = app.report.create(
-                rjson["view"]["callback_id"], rjson["user"], None, dinfo
+            nr, msg = app.report.create(
+                rjson["view"]["callback_id"], rjson["user"], dinfo
             )
 
         # inform user
-        post_message(
-            userid,
-            "Report [{}] saved. To add photos, you can send me a message"
-            " (with photos attached): *{} photo*".format(
-                app.report.id_to_name(nr), app.report.id_to_name(nr)
-            ),
-        )
+        if not msg:
+            # success
+            msg = (
+                "Report [{}] saved. To add photos, you can send me a message "
+                "(with photos attached): *{} photo*".format(
+                    app.report.id_to_name(nr), app.report.id_to_name(nr)
+                )
+            )
+        post_message(userid, msg)
     return {}
 
 
@@ -258,3 +273,22 @@ def handle_report_cancel_modal(rjson):
                 logger.info("Cancelled - deleting report {}".format(state["rid"]))
                 app.report.delete(rm, app.s3)
     return {}
+
+
+def handle_report_submit_validation(rjson):
+    # N.B. this is called in slack api context - must respond quickly - no DB calls etc.
+    # Is in normal flask app context
+    if rjson["view"]["callback_id"] == TYPE_DISTURBANCE:
+        # make sure at least some issues was entered.
+        values = rjson["view"]["state"]["values"]
+        if not _parse_values("wildlife_issues", values) and not _parse_values(
+            "other_issues", values
+        ):
+            return {
+                "response_action": "errors",
+                "errors": {
+                    "wildlife_issues": "You must select at least one"
+                    " wildlife or other disturbance"
+                },
+            }
+        return None
