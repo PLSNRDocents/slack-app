@@ -4,7 +4,6 @@
 This is the interface from slack to/from backend of drupal.
 """
 
-import cachetools.func
 from dataclasses import dataclass, fields
 from datetime import datetime
 from dateutil import tz
@@ -51,7 +50,6 @@ class ReportModel:
             "create_datetime",
             "photos",
             "type",
-            "status",
             "reporter",
         }
         return cls.field_list() - internal
@@ -64,18 +62,13 @@ class Report:
         self._site = DrupalApi(
             config["PLSNR_JSON_USERNAME"],
             config["PLSNR_PASSWORD"],
-            config["PLSNR_URL"],
+            "{}/plsnr1933api".format(config["PLSNR_HOST"]),
             config["SSL_VERIFY"],
         )
 
     def _initrm(self):
         dt = datetime.now(tz.tzutc())
-        nr = ReportModel(
-            id="",
-            type="Unknown",
-            location="",
-            create_datetime=dt,
-        )
+        nr = ReportModel(id="", type="Unknown", location="", create_datetime=dt,)
         return nr
 
     def _fillin(self, nr, rtype, who, dinfo):

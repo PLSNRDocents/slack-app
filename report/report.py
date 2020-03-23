@@ -102,29 +102,7 @@ def open_disturbance_report_modal(trigger, state):
     trail_options = []
     for n, d in TRAIL_VALUE_2_DESC.items():
         trail_options.append((d, n))
-    """
-    valid_dist_issues = [
-        "off",
-        "eat",
-        "pet",
-        "take",
-        "tide",
-        "climb",
-        "evil",
-        "pin",
-        "ott",
-        "bird",
-        "jump",
-        "bike",
-        "drone",
-        "air",
-        "fish",
-        "ot",
-    ]
-    disturbance_issues = []
-    for n in valid_dist_issues:
-        disturbance_issues.append((ISSUES_2_DESC[n], n))
-    """
+
     app = asyncev.wapp
     with app.app_context():
         wildlife_issues = app.report.get_wildlife_issue_list()
@@ -279,7 +257,7 @@ def handle_report_submit_validation(rjson):
     # N.B. this is called in slack api context - must respond quickly - no DB calls etc.
     # Is in normal flask app context
     if rjson["view"]["callback_id"] == TYPE_DISTURBANCE:
-        # make sure at least some issues was entered.
+        # make sure at least some issue was entered.
         values = rjson["view"]["state"]["values"]
         if not _parse_values("wildlife_issues", values) and not _parse_values(
             "other_issues", values

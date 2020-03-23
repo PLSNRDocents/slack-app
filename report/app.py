@@ -3,16 +3,13 @@
 """
 A Flask app that receives slack app calls and reacts.
 
-It also provides a flask-admin web interface for looking at submitted reports.
-It uses a proxy to the docent website for authn.
-
 To run locally - start dynamoDB:
 
 cd dynamodb_local_latest
 java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar -sharedDb
 
 Run ngrok:
-ngrok http 5002
+ngrok http 6002
 
 Start this app (report)
 If ngrok was killed/machine restarted - go to slack app console and replace
@@ -31,18 +28,15 @@ import threading
 import os
 
 from flask import Flask, redirect, url_for
-from flask_admin import Admin
 from flask_moment import Moment
 
 from api import api
 import asyncev
 from constants import LOG_FORMAT, DATE_FMT
 from dynamo import DDB, DDBCache
-from proxy_auth import PLAdminIndexView, init_login
+import plweb
 from report_drupal import Report as DrupalReport
-import s3
 from slack_api import get_bot_info
-from webview import ReportModelView
 
 REQUIRED_CONFIG = ["SIGNING_SECRET", "BOT_TOKEN", "SECRET_KEY"]
 
@@ -59,7 +53,6 @@ def create_app():
     logging.getLogger("botocore").setLevel(logging.INFO)
     logging.getLogger("boto3").setLevel(logging.INFO)
     logging.getLogger("urllib3").setLevel(logging.INFO)
-    logging.getLogger("s3transfer").setLevel(logging.INFO)
 
     mode = os.environ["PLSNRENV"]
     logger.info("create_app: mode {}".format(mode))
@@ -75,7 +68,6 @@ def create_app():
             logger.warning("Config variable {} overwritten by environment".format(rc))
             app.config[rc] = os.environ[rc]
 
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
     logger.info("create_app: init db")
     app.ddb = DDB(app.config)
     # app.report = dynamo.Report(app.config, app.ddb)
@@ -84,24 +76,8 @@ def create_app():
     app.report = DrupalReport(app.config)
     app.register_blueprint(api)
 
-    logger.info("create_app: initializing S3")
-    app.s3 = s3.S3Storage(app.config)
-    app.s3.init()
-
-    # Flask-Login
-    init_login(app)
+    app.plweb = plweb.Plweb(app.config)
     app.moment = Moment(app)
-
-    # Flask-admin
-    app.config["FLASK_ADMIN_SWATCH"] = "cerulean"
-    admin = Admin(
-        name="PLSNR-Docent",
-        template_mode="bootstrap3",
-        index_view=PLAdminIndexView(),
-        base_template="pl_master.html",
-    )
-    admin.init_app(app)
-    admin.add_view(ReportModelView(app.report, name="Reports", endpoint="reports"))
 
     @app.before_first_request
     def start_async():
@@ -115,10 +91,6 @@ def create_app():
     @app.before_first_request
     def whoami():
         get_bot_info()
-
-    @app.route("/")
-    def index():
-        return redirect(url_for("admin.index"))
 
     return app
 
