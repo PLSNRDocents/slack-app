@@ -37,8 +37,9 @@ from flask_moment import Moment
 from api import api
 import asyncev
 from constants import LOG_FORMAT, DATE_FMT
-import dynamo
+from dynamo import DDB, DDBCache
 from proxy_auth import PLAdminIndexView, init_login
+from report_drupal import Report as DrupalReport
 import s3
 from slack_api import get_bot_info
 from webview import ReportModelView
@@ -76,16 +77,11 @@ def create_app():
 
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
     logger.info("create_app: init db")
-    if app.config["USE_DYNAMO"]:
-        app.ddb = dynamo.DDB(app.config)
-        app.report = dynamo.Report(app.config, app.ddb)
-        app.ddb_cache = dynamo.DDBCache(app.config, app.ddb)
-    else:
-        from dbmodel import db
-        from sql import Report
+    app.ddb = DDB(app.config)
+    # app.report = dynamo.Report(app.config, app.ddb)
+    app.ddb_cache = DDBCache(app.config, app.ddb)
 
-        db.init_app(app)
-        app.report = Report(db, app)
+    app.report = DrupalReport(app.config)
     app.register_blueprint(api)
 
     logger.info("create_app: initializing S3")
@@ -113,9 +109,8 @@ def create_app():
 
     @app.before_first_request
     def init_tables():
-        if app.config["USE_DYNAMO"]:
-            # app.ddb.destroy_all()
-            app.ddb.create_all()
+        # app.ddb.destroy_all()
+        app.ddb.create_all()
 
     @app.before_first_request
     def whoami():
@@ -132,5 +127,5 @@ if __name__ == "__main__":
     # reloader doesn't work with additional threads.
     app = create_app()
     asyncev.wapp = app
-    app.run(host="localhost", port=5002, debug=True, use_reloader=False)
+    app.run(host="localhost", port=6002, debug=True, use_reloader=False)
     asyncev.event_loop.call_soon_threadsafe(asyncev.event_loop.stop)

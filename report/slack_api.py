@@ -102,6 +102,20 @@ def delete_message(channel, ts):
         )
 
 
+def get_all_users():
+    users = []
+
+    rv = get("users.list", {"limit": 50})
+    users.extend(rv["members"])
+
+    next_batch = rv["response_metadata"].get("next_cursor", None)
+    while next_batch:
+        rv = get("users.list", {"limit": 50, "cursor": next_batch})
+        users.extend(rv["members"])
+        next_batch = rv["response_metadata"].get("next_cursor", None)
+    return users
+
+
 @cachetools.func.ttl_cache(600, ttl=60 * 60 * 24)
 def user_to_name(slack_user_id):
     try:

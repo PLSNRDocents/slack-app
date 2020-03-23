@@ -369,6 +369,8 @@ def talk_to_me(event_id, event):
 
                 delete_message(event["channel"], event["ts"])
                 pme(event, blocks)
+            elif re.match(r"whoswho", whatsup[1], re.IGNORECASE):
+                whoswho = app.report.whoswho()
             else:
                 blocks = [
                     text_block(

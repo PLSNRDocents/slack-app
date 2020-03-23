@@ -18,6 +18,7 @@ from report import (
     open_trail_report_modal,
     handle_report_cancel_modal,
     handle_report_submit_modal,
+    handle_report_submit_validation,
 )
 from slack_api import get_file_info, get_bot_user_id, post
 import utils
@@ -58,6 +59,9 @@ def submit():
 
     rjson = json.loads(request.form["payload"])
     if rjson["type"] == "view_submission":
+        verrors = handle_report_submit_validation(rjson)
+        if verrors:
+            return jsonify(verrors), 200
         run_async(current_app.config["EV_MODE"], handle_report_submit_modal, rjson)
         return "", 200
     elif rjson["type"] == "view_closed":

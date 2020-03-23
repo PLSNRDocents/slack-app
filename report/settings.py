@@ -12,6 +12,12 @@ class Settings:
     USE_DYNAMO = False
     ENABLE_TRAIL_REPORT = False
 
+    PLSNR_USERNAME = None
+    PLSNR_JSON_USERNAME = None
+    PLSNR_PASSWORD = None
+
+    SSL_VERIFY = True
+
 
 class DevSettings(Settings):
     EV_MODE = "ev"
@@ -24,6 +30,10 @@ class DevSettings(Settings):
     DYNAMO_ENABLE_LOCAL = True
     DYNAMO_LOCAL_HOST = "localhost"
     DYNAMO_LOCAL_PORT = 8000
+
+    PLSNR_URL = "https://plfdocents.pantheonlocal.com/plsnr1933api"
+
+    SSL_VERIFY = False
 
 
 class AWSDevSettings(Settings):
