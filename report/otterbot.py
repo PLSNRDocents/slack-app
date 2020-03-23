@@ -14,15 +14,11 @@ import traceback
 
 import asyncev
 from constants import (
-    STATUS_PLACEHOLDER,
-    STATUS_CLOSED,
     TRAIL_VALUE_2_DESC,
-    TYPE_DISTURBANCE,
     TYPE_TRAIL,
     xlate_issues,
 )
 
-import plweb
 from quotes import QUOTES
 from slack_api import (
     get_file_info,
@@ -31,7 +27,7 @@ from slack_api import (
     user_to_name,
 )
 import utils
-from utils import convert_gps, text_block, divider_block, text_image, buttons_block
+from utils import text_block, divider_block, text_image
 
 
 logger = logging.getLogger(__name__)
@@ -48,8 +44,7 @@ def talk_to_me(event_id, event):
 
     Commands:
     "rep(orts)"
-    "<report_id> del(ete) | photo | close
-    "new r(eport)"
+    "<report_id> photo
     "at <where>"
 
     """
@@ -95,7 +90,7 @@ def talk_to_me(event_id, event):
                     pme(
                         event,
                         "It appears you are trying to create a report -"
-                        " use new report",
+                        " use home tab to create reports",
                     )
 
                 blocks = []
@@ -106,26 +101,12 @@ def talk_to_me(event_id, event):
                 if reports:
                     for r in reports:
                         blocks.append(divider_block())
-                        gps = ""
-                        if r.gps:
-                            dlat, dlng = convert_gps(r.gps)
-                            if dlat and dlng:
-                                gps = (
-                                    "<https://www.google.com/maps/search/?"
-                                    "api=1&query={},{}|GPS {}>".format(
-                                        dlat, dlng, r.gps
-                                    )
-                                )
-                            else:
-                                gps = "GPS {}".format(r.gps)
                         dt = "<!date^{}^{{date_short_pretty}} {{time}}|{}>".format(
                             int(r.create_datetime.timestamp()), r.create_datetime
                         )
                         kiosk = ""
                         if r.kiosk_called != "no":
-                            kiosk = "\nKiosk called - resolved: _{}_".format(
-                                r.kiosk_resolution
-                            )
+                            kiosk = "\nKiosk called"
                         url = None
                         if len(r.photos) > 0:
                             url = (
@@ -140,7 +121,7 @@ def talk_to_me(event_id, event):
                             )
                         text = (
                             "[{}] {date} _{who}_ {status} {type}:"
-                            "\n*{issue}* {verb} _{location}_ {gps}"
+                            "\n*{issue}* {verb} _{location}_"
                             "  {photo_link}{kiosk}".format(
                                 app.report.id_to_name(r),
                                 date=dt,
@@ -154,7 +135,6 @@ def talk_to_me(event_id, event):
                                 issue=xlate_issues(r.issues),
                                 verb="on" if r.location.startswith("t") else "at",
                                 location=TRAIL_VALUE_2_DESC.get(r.location, "??"),
-                                gps=gps,
                                 photo_link="(<{}|Big Picture>)".format(url)
                                 if url
                                 else "",
@@ -172,63 +152,12 @@ def talk_to_me(event_id, event):
                             blocks.append(text_block(text))
                 post_ephemeral_message(event["channel"], event["user"], blocks)
                 delete_message(event["channel"], event["ts"])
-            elif re.match(r"new", whatsup[1], re.IGNORECASE):
-                try:
-                    what = whatsup[2]
-                    if not what.startswith("rep"):
-                        raise ValueError()
-                except (ValueError, IndexError):
-                    pme(
-                        event,
-                        "Use: new rep(ort) to start a new report "
-                        "(with optional attached photos).",
-                    )
-                    return
-                # create new report to store photos
-                nr = app.report.start_new()
-                logger.info(
-                    "User {}({}) starting new report {}".format(
-                        user_to_name(event["user"]), event["user"], nr.id
-                    )
-                )
-
-                # start an interactive message.
-                # Seems safe enough to do this now - it takes a while to save files
-                # and that confuses users.
-                b = []
-                b.append(text_block("*Please select report type*"))
-                b.append(divider_block())
-                b.append(
-                    buttons_block(
-                        "NEWREP:" + nr.id,
-                        [("Trail", TYPE_TRAIL), ("Disturbance", TYPE_DISTURBANCE)],
-                    )
-                )
-                delete_message(event["channel"], event["ts"])
-
-                pme(event, b)
-
-                # grab photos
-                if "files" in event:
-                    for finfo in event["files"]:
-                        logger.info(
-                            "Adding file {} to {}".format(json.dumps(finfo), nr.id)
-                        )
-                        app.report.add_photo(app.s3, finfo, nr)
 
             elif re.match(r"(TR|DR|[12][0-9])", whatsup[1], re.IGNORECASE):
-                # <report_id> del [photo]
                 # <report_id> photo
-                # <report_id> close
                 rname = whatsup[1]
 
-                usage = (
-                    "Use: _report_id_ del(ete) - Delete report entirely\n"
-                    "_report_id_ del(ete) photo(s) -"
-                    " Delete all photos from report\n"
-                    "_report_id_ photo - Add (attached) photos to report\n"
-                    "_report_id_ close - close a trail report"
-                )
+                usage = "Use: _report_id_ photo - Add (attached) photos to report\n"
                 try:
                     action = whatsup[2]
                     rid = app.report.name_to_id(rname)
@@ -240,43 +169,7 @@ def talk_to_me(event_id, event):
                         )
                         return
 
-                    if action.startswith("del"):
-                        if event["user"] not in ADMIN_USER_IDS:
-                            post_ephemeral_message(
-                                event["channel"],
-                                event["user"],
-                                "You aren't authorized to delete reports",
-                            )
-                            return
-                        if len(whatsup) == 3:
-                            # delete entire report
-                            just_photos = False
-                        elif len(whatsup) == 4 and whatsup[3].startswith("photo"):
-                            just_photos = True
-                        else:
-                            post_ephemeral_message(
-                                event["channel"], event["user"], usage
-                            )
-                            return
-                        logger.info(
-                            "User {}({}) requesting to delete {} {}".format(
-                                event["user"],
-                                user_to_name(event["user"]),
-                                "photos" if just_photos else "report",
-                                rname,
-                            )
-                        )
-                        if just_photos:
-                            app.report.delete_photos(rm, app.s3)
-                        else:
-                            app.report.delete(rm, app.s3)
-                        pme(
-                            event,
-                            "Deleted {} report {}".format(
-                                "photos from" if just_photos else "", rname
-                            ),
-                        )
-                    elif action.startswith("photo"):
+                    if action.startswith("photo"):
                         if "files" not in event:
                             pme(
                                 event, "No photos attached? for report {}".format(rname)
@@ -288,22 +181,13 @@ def talk_to_me(event_id, event):
                                     rname, json.dumps(finfo)
                                 )
                             )
-                            app.report.add_photo(app.s3, finfo, rm)
+                            app.report.add_photo(finfo, rm)
                         pme(
                             event,
                             "Added {} photos to report {}".format(
                                 len(event["files"]), rname
                             ),
                         )
-                    elif action.startswith("close"):
-                        # Can only close trail reports
-                        if rm.type != TYPE_TRAIL:
-                            pme(event, "Only Trail reports can be closed")
-                        else:
-                            if rm.status != STATUS_PLACEHOLDER:
-                                rm.status = STATUS_CLOSED
-                                app.report.update(rm)
-                                pme(event, "Closed report {}".format(rname))
                     else:
                         pme(event, usage)
                 except (ValueError, IndexError) as exc:
@@ -363,21 +247,21 @@ def talk_to_me(event_id, event):
                             )
                         ],
                     )
-                    atinfo = plweb.whoat(lday.strftime("%Y%m%d"), where)
+                    atinfo = app.plweb.whoat(lday.strftime("%Y%m%d"), where)
                     app.ddb_cache.put(ckey, atinfo)
                 blocks = utils.atinfo_to_blocks(atinfo, lday)
 
                 delete_message(event["channel"], event["ts"])
                 pme(event, blocks)
             elif re.match(r"whoswho", whatsup[1], re.IGNORECASE):
-                whoswho = app.report.whoswho()
+                whoswho, unmatched = app.report.whoswho()
             else:
                 blocks = [
                     text_block(
                         "*Sorry didn't hear you - I was sleeping.*\nYou can ask for:\n"
                         "*reports* - Show most recent trail/disturbance reports.\n"
                         "*new* - Create a report with optional photos.\n"
-                        "_report_id_ - Modify/Delete/Add photos"
+                        "_report_id_ - Add photos"
                         " to an existing report.\n"
                         "*at* - who's doing what at the Reserve today.\n"
                     )

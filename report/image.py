@@ -10,7 +10,7 @@ from PIL.ExifTags import TAGS, GPSTAGS
 import requests
 
 
-def add_photo(s3, finfo, rid):
+def add_photo(finfo, rid):
     fd, local_file = mkstemp(suffix="." + finfo["filetype"])
     try:
         # fetch and store locally
@@ -22,8 +22,8 @@ def add_photo(s3, finfo, rid):
             exif_data = get_exif_data(im)
             lat, lon = get_lat_lon(exif_data)
 
-        s3_finfo = s3.save(local_file, finfo["filetype"], finfo["mimetype"], rid)
-        return s3_finfo, lat, lon
+        # TODO - upload to report?
+        return
     finally:
         os.close(fd)
         os.remove(local_file)
