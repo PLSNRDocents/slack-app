@@ -4,17 +4,22 @@ Interact with the Drupal JSON:API module to fetch and create entities.
 https://www.drupal.org/docs/8/core/modules/jsonapi-module
 
 """
+
 import cachetools.func
 from datetime import datetime
+import dateutil
 import logging
 
 import requests
+
+from constants import TYPE_DISTURBANCE
 
 logger = logging.getLogger(__name__)
 
 ISSUETYPE_TO_TAXONOMYTYPE = {
     "wildlife": "wildlife_disturbance",
     "other": "other_disturbance",
+    "places": "places",
 }
 
 
@@ -34,6 +39,7 @@ class DrupalApi:
         self.session.auth = (username, password)
         self.session.verify = ssl_verify
 
+    @cachetools.func.ttl_cache(60, ttl=(60 * 60 * 2))
     def get_taxonomy(self, which):
         """ Return a list of dict
 
@@ -57,8 +63,51 @@ class DrupalApi:
             terms.append({"name": d["attributes"]["name"], "id": d["id"]})
         return terms
 
+    def get_reports(self):
+        rv = self.session.get(
+            "{}/node/disturbance_report".format(self.server_url),
+            params={"sort": "-changed", "page[limit]": "10"},
+        )
+        rv.raise_for_status()
+        jbody = rv.json()
+
+        reports = list()
+        for d in jbody["data"]:
+            r = {
+                "id": d["id"],
+                "type": TYPE_DISTURBANCE,
+                "details": d["attributes"]["field_details"],
+                "create_datetime": dateutil.parser.parse(
+                    d["attributes"]["field_interaction_time"]
+                ),
+            }
+            # All the rest are relationships - we return the UUID and let caller xlate
+            rels = d["relationships"]
+            if "field_reporter" in rels and "data" in rels["field_reporter"]:
+                r["reporter"] = rels["field_reporter"]["data"]["id"]
+            if "field_place" in rels and rels["field_place"].get("data", None):
+                r["location"] = rels["field_place"]["data"]["id"]
+            if "field_wildlife_disturbance" in rels and rels[
+                "field_wildlife_disturbance"
+            ].get("data", None):
+                ids = [f["id"] for f in rels["field_wildlife_disturbance"]["data"]]
+                r["wildlife_issues"] = ",".join(ids)
+            if "field_other_disturbance" in rels and rels[
+                "field_other_disturbance"
+            ].get("data", None):
+                ids = [f["id"] for f in rels["field_other_disturbance"]["data"]]
+                r["other_issues"] = ",".join(ids)
+            reports.append(r)
+        return reports
+
     def create_disturbance_report(
-        self, when: datetime, details, wildlife_tax_ids, other_tax_ids, reporter_id
+        self,
+        when: datetime,
+        details,
+        wildlife_tax_ids,
+        other_tax_ids,
+        reporter_id,
+        location_tax_id,
     ):
 
         if wildlife_tax_ids and not isinstance(wildlife_tax_ids, list):
@@ -72,6 +121,7 @@ class DrupalApi:
                 "field_interaction_time": when.isoformat(timespec="seconds"),
                 "field_details": {"value": details, "format": "plain_text"},
             },
+            "relationships": dict(),
         }
 
         if wildlife_tax_ids:
@@ -80,24 +130,22 @@ class DrupalApi:
                 data.append(
                     {"type": "taxonomy_term--wildlife_disturbance", "id": tax_id}
                 )
-            if "relationships" not in body:
-                body["relationships"] = dict()
             body["relationships"]["field_wildlife_disturbance"] = {"data": data}
 
         if other_tax_ids:
             data = list()
             for tax_id in other_tax_ids:
                 data.append({"type": "taxonomy_term--other_disturbance", "id": tax_id})
-            if "relationships" not in body:
-                body["relationships"] = dict()
             body["relationships"]["field_other_disturbance"] = {"data": data}
 
         if reporter_id:
-            if "relationships" not in body:
-                body["relationships"] = dict()
             body["relationships"]["field_reporter"] = {
                 "data": {"type": "user--user", "id": reporter_id}
             }
+        body["relationships"]["field_place"] = {
+            "data": {"type": "taxonomy_term--places", "id": location_tax_id}
+        }
+
         rv = self.session.post(
             "{}/node/disturbance_report".format(self.server_url), json=dict(data=body)
         )
@@ -109,7 +157,7 @@ class DrupalApi:
         jbody = rv.json()
         return jbody["data"]["id"]
 
-    @cachetools.func.ttl_cache(60, ttl=(60 * 60 * 2))
+    @cachetools.func.ttl_cache(60, ttl=(60 * 60 * 8))
     def get_all_users(self):
         """ Return a dict
 
@@ -133,3 +181,10 @@ class DrupalApi:
                 next_batch = next_batch["href"]
 
         return users
+
+    @cachetools.func.ttl_cache(60, ttl=(60 * 60 * 2))
+    def get_user(self, user_uuid):
+        rv = self.session.get("{}/user/user/{}".format(self.server_url, user_uuid))
+        rv.raise_for_status()
+        jbody = rv.json()
+        return jbody["data"]

@@ -107,6 +107,7 @@ def open_disturbance_report_modal(trigger, state):
     with app.app_context():
         wildlife_issues = app.report.get_wildlife_issue_list()
         other_issues = app.report.get_other_issue_list()
+        places = app.report.get_places_list()
 
     blocks = []
     blocks.append(
@@ -127,19 +128,18 @@ def open_disturbance_report_modal(trigger, state):
     )
     blocks.append(
         input_block(
-            "location",
-            "Trail/Location",
-            select_element("value", "Select one", trail_options),
+            "location", "Trail/Location", select_element("value", "Select one", places),
         )
     )
     blocks.append(
         input_block(
             "cross_trail",
             "Nearest Cross Trail",
-            select_element("value", "Select one", trail_options),
+            select_element("value", "Select one", places),
             optional=True,
         )
     )
+    """
     blocks.append(
         input_block(
             "kiosk_called",
@@ -152,6 +152,7 @@ def open_disturbance_report_modal(trigger, state):
             ),
         )
     )
+    """
     blocks.append(
         input_block(
             "details",
@@ -229,12 +230,8 @@ def handle_report_submit_modal(rjson):
         # inform user
         if not msg:
             # success
-            msg = (
-                "Report [{}] saved. To add photos, you can send me a message "
-                "(with photos attached): *{} photo*".format(
-                    app.report.id_to_name(nr), app.report.id_to_name(nr)
-                )
-            )
+            msg = "Report saved to website"
+
         post_message(userid, msg)
     return {}
 
