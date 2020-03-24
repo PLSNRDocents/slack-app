@@ -1,4 +1,4 @@
-# Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2020 by J. Christopher Wagner (jwag). All rights reserved.
 
 """
 Handle our chat-bot.
@@ -13,11 +13,7 @@ import re
 import traceback
 
 import asyncev
-from constants import (
-    TRAIL_VALUE_2_DESC,
-    TYPE_TRAIL,
-    xlate_issues,
-)
+from constants import TYPE_TRAIL
 
 from quotes import QUOTES
 from slack_api import (
@@ -97,66 +93,40 @@ def talk_to_me(event_id, event):
                 blocks.append(divider_block())
                 blocks.append(text_block("*Current Reports:*"))
 
-                reports = app.report.fetch(filters=app.report.ACTIVE_FILTER)
+                reports = app.report.fetch()
                 if reports:
                     for r in reports:
                         blocks.append(divider_block())
                         dt = "<!date^{}^{{date_short_pretty}} {{time}}|{}>".format(
                             int(r.create_datetime.timestamp()), r.create_datetime
                         )
-                        kiosk = ""
-                        if r.kiosk_called != "no":
-                            kiosk = "\nKiosk called"
-                        url = None
-                        if len(r.photos) > 0:
-                            url = (
-                                "https://slack-files.com/TODJUU16J-FN7GS9OD8-c5fe8ef934"
-                            )
-                            url = (
-                                "https://files.slack.com/files-pri/"
-                                "T0DJUU16J-FNM7VV9FF/image_from_ios__2_.jpg"
-                            )
-                            url = "https://s3.us-east-1.amazonaws.com/{}/{}".format(
-                                app.config["S3_BUCKET"], r.photos[0].s3_url
-                            )
+                        issues = ""
+                        if r.wildlife_issues:
+                            issues += "*{}*".format(r.wildlife_issues)
+                        if r.other_issues:
+                            if issues:
+                                issues += " and "
+                            issues += "*{}*".format(r.other_issues)
                         text = (
-                            "[{}] {date} _{who}_ {status} {type}:"
-                            "\n*{issue}* {verb} _{location}_"
-                            "  {photo_link}{kiosk}".format(
-                                app.report.id_to_name(r),
+                            "{date} _{who}_ reported:"
+                            "\n{issues} {verb} _{location}_".format(
                                 date=dt,
-                                who=r.reporter
-                                if r.reporter
-                                else r.reporter_slack_handle,
-                                status=r.status,
-                                type="trail issue"
-                                if r.type == TYPE_TRAIL
-                                else "disturbance",
-                                issue=xlate_issues(r.issues),
-                                verb="on" if r.location.startswith("t") else "at",
-                                location=TRAIL_VALUE_2_DESC.get(r.location, "??"),
-                                photo_link="(<{}|Big Picture>)".format(url)
-                                if url
-                                else "",
-                                kiosk=kiosk,
+                                who=r.reporter,
+                                issues=issues,
+                                verb="on" if "Trail" in r.location else "at",
+                                location=r.location,
                             )
                         )
-                        if url:
-                            blocks.append(text_image(text, url))
-                            logger.debug(
-                                "Image block {}".format(
-                                    json.dumps(text_image(text, url))
-                                )
-                            )
-                        else:
-                            blocks.append(text_block(text))
+                        blocks.append(text_block(text))
                 post_ephemeral_message(event["channel"], event["user"], blocks)
                 delete_message(event["channel"], event["ts"])
 
             elif re.match(r"(TR|DR|[12][0-9])", whatsup[1], re.IGNORECASE):
                 # <report_id> photo
+                pme(event, "Not supported yet")
+                return
+                """
                 rname = whatsup[1]
-
                 usage = "Use: _report_id_ photo - Add (attached) photos to report\n"
                 try:
                     action = whatsup[2]
@@ -197,6 +167,7 @@ def talk_to_me(event_id, event):
                         )
                     )
                     pme(event, usage)
+                """
             elif re.match(r"at", whatsup[1], re.IGNORECASE):
                 # default to all locations for 'today'.
                 where = "all"
@@ -260,9 +231,6 @@ def talk_to_me(event_id, event):
                     text_block(
                         "*Sorry didn't hear you - I was sleeping.*\nYou can ask for:\n"
                         "*reports* - Show most recent trail/disturbance reports.\n"
-                        "*new* - Create a report with optional photos.\n"
-                        "_report_id_ - Add photos"
-                        " to an existing report.\n"
                         "*at* - who's doing what at the Reserve today.\n"
                     )
                 ]

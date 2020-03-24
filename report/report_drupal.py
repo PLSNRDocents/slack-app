@@ -20,11 +20,11 @@ from constants import (
 
 @dataclass
 class ReportModel:
-    id: str  # readable unique id (primary key)
+    id: str  # UUID from drupal
 
     create_datetime: datetime
     type: str  # Trail or Disturbance
-    location: str  # e.g. trail name
+    location: str = "Unk"  # e.g. trail name
     wildlife_issues: str = None  # e.g. otters - comma separated
     other_issues: str = None  # e.g. otters - comma separated
 
@@ -93,19 +93,62 @@ class Report:
             nr.wildlife_issues,
             nr.other_issues,
             nr.reporter_id,
+            nr.location,
         )
         self._logger.info("Created report {}".format(nr.id))
         return nr, None
 
+    @staticmethod
+    def _taxid2name(tax_id_list, report_ids):
+        # report_ids might be a list or might be "Unk"
+        if not report_ids:
+            return "Unk"
+        if not isinstance(report_ids, list):
+            report_ids = [report_ids]
+        matches = []
+        for r in report_ids:
+            matches.extend([i["name"] for i in tax_id_list if i["id"] == r])
+        if not matches:
+            return "Unk"
+        return ",".join(matches)
+
+    def fetch(self):
+        # Get recent reports.
+        dreports = self._site.get_reports()
+        rms = []
+        for dr in dreports:
+            nr = ReportModel(**dr)
+            if nr.wildlife_issues:
+                tax_ids = self._site.get_taxonomy("wildlife")
+                nr.wildlife_issues = Report._taxid2name(tax_ids, nr.wildlife_issues)
+            if nr.other_issues:
+                tax_ids = self._site.get_taxonomy("other")
+                nr.other_issues = Report._taxid2name(tax_ids, nr.other_issues)
+            if nr.location:
+                tax_ids = self._site.get_taxonomy("places")
+                nr.location = Report._taxid2name(tax_ids, nr.location)
+            if nr.reporter:
+                user = self._site.get_user(nr.reporter)
+                nr.reporter = user["attributes"]["name"]
+
+            rms.append(nr)
+
+        return rms
+
     def get_wildlife_issue_list(self):
         # Return a list of tuple (<display_name>, <id>) of possible wildlife issues
         wissues = self._site.get_taxonomy("wildlife")
-        return [(d["name"], d["id"]) for d in wissues]
+        return sorted([(d["name"], d["id"]) for d in wissues])
 
     def get_other_issue_list(self):
         # Return a list of tuple (<display_name>, <id>) of possible other issues
         wissues = self._site.get_taxonomy("other")
-        return [(d["name"], d["id"]) for d in wissues]
+        return sorted([(d["name"], d["id"]) for d in wissues])
+
+    def get_places_list(self):
+        # Return a list of tuple (<display_name>, <id>)
+        places = self._site.get_taxonomy("places")
+        return sorted([(d["name"], d["id"]) for d in places])
 
     def slack2plsnr(self, slack_user_id):
         # Attempt to map the slack_id to a registered plsnr web site user
