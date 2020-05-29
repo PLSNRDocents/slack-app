@@ -39,9 +39,14 @@ class DrupalApi:
         self.session.auth = (username, password)
         self.session.verify = ssl_verify
 
-    @cachetools.func.ttl_cache(60, ttl=(60 * 60 * 2))
+    @cachetools.func.ttl_cache(60, ttl=(60 * 5))
     def get_taxonomy(self, which):
-        """ Return a list of dict
+        """
+        N.B. while this is cached - that is mostly for testing - it doesn't
+        really help in production when this is a lambda. That's why higher level code
+        actually writes this to a DB cache (so we can respond to slack fast enough).
+
+        Return a list of dict
 
         [ {
             "name": <name>,
@@ -61,12 +66,15 @@ class DrupalApi:
         terms = list()
         for d in jbody["data"]:
             terms.append({"name": d["attributes"]["name"], "id": d["id"]})
+        if not terms:
+            # that isn't right - don't cache
+            raise ValueError("No taxonomy terms returned for {}".format(which))
         return terms
 
     def get_reports(self):
         rv = self.session.get(
             "{}/node/disturbance_report".format(self.server_url),
-            params={"sort": "-changed", "page[limit]": "10"},
+            params={"sort": "-field_interaction_time", "page[limit]": "10"},
         )
         rv.raise_for_status()
         jbody = rv.json()
@@ -120,6 +128,7 @@ class DrupalApi:
             "attributes": {
                 "field_interaction_time": when.isoformat(timespec="seconds"),
                 "field_details": {"value": details, "format": "plain_text"},
+                "field_via": "slack",
             },
             "relationships": dict(),
         }
@@ -150,12 +159,18 @@ class DrupalApi:
             "{}/node/disturbance_report".format(self.server_url), json=dict(data=body)
         )
         if rv.status_code >= 400:
+            # Alas we seem to sometimes get a 500 with the error:
+            #   The controller result claims to be providing relevant cache metadata,
+            #   but leaked metadata was detected.
+            # However the content was created just fine.
             logger.warning("API failed code:{} Text:{}".format(rv.status_code, rv.text))
-        rv.raise_for_status()
+            if rv.status_code == 500 and "leaked metadata" in rv.text:
+                return None, "API returned error but report likely created"
+            return None, "API failed"
 
         # return id which is what is need when POSTing.
         jbody = rv.json()
-        return jbody["data"]["id"]
+        return jbody["data"]["id"], None
 
     @cachetools.func.ttl_cache(60, ttl=(60 * 60 * 8))
     def get_all_users(self):
@@ -182,7 +197,7 @@ class DrupalApi:
 
         return users
 
-    @cachetools.func.ttl_cache(60, ttl=(60 * 60 * 2))
+    @cachetools.func.ttl_cache(60, ttl=(60 * 5))
     def get_user(self, user_uuid):
         rv = self.session.get("{}/user/user/{}".format(self.server_url, user_uuid))
         rv.raise_for_status()

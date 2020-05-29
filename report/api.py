@@ -174,13 +174,16 @@ def handle_file(event):
 
 
 def start_report(ttype, trigger, state):
-    logger.info(
-        "Opening modal type {} trigger_id {} state {}".format(ttype, trigger, state)
-    )
-    if ttype == "trail":
-        open_trail_report_modal(trigger, state)
-    else:
-        open_disturbance_report_modal(trigger, state)
+    try:
+        logger.info(
+            "Opening modal type {} trigger_id {} state {}".format(ttype, trigger, state)
+        )
+        if ttype == "trail":
+            open_trail_report_modal(trigger, state)
+        else:
+            open_disturbance_report_modal(trigger, state)
+    except Exception:
+        logger.exception("Start report failed")
 
 
 def handle_at(when, rjson):

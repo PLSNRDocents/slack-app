@@ -1,4 +1,4 @@
-# Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2020 by J. Christopher Wagner (jwag). All rights reserved.
 
 import logging
 import os
@@ -21,7 +21,14 @@ def _chk_error(rv, endpoint):
         jresponse = None
     logger.info("Slack POST to {} status {}".format(endpoint, rv.status_code))
     if rv.status_code != 200 or (jresponse and "error" in jresponse):
-        raise SlackApiError("Endpoint {} error {}".format(endpoint, jresponse["error"]))
+        reasons = "Unk"
+        if jresponse and "response_metadata" in jresponse:
+            reasons = jresponse["response_metadata"]
+        raise SlackApiError(
+            "Endpoint {} error {} reasons {}".format(
+                endpoint, jresponse["error"], reasons
+            )
+        )
     return jresponse
 
 

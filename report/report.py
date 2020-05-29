@@ -5,6 +5,9 @@ import logging
 
 import asyncev
 from constants import (
+    CKEY_OTHER_ISSUES,
+    CKEY_WILDLIFE_ISSUES,
+    CKEY_PLACES,
     STATUS_PLACEHOLDER,
     TRAIL_VALUE_2_DESC,
     TYPE_TRAIL,
@@ -99,15 +102,28 @@ def open_trail_report_modal(trigger, state):
 
 
 def open_disturbance_report_modal(trigger, state):
-    trail_options = []
-    for n, d in TRAIL_VALUE_2_DESC.items():
-        trail_options.append((d, n))
+    """
+    Even though we are async - we only have 3 seconds to use the trigger.
+    We assume the cache should be primed via a zappa task - but we will self-prime
+    here for testing.
+    """
 
     app = asyncev.wapp
     with app.app_context():
-        wildlife_issues = app.report.get_wildlife_issue_list()
-        other_issues = app.report.get_other_issue_list()
-        places = app.report.get_places_list()
+        wildlife_issues = app.ddb_cache.get(CKEY_WILDLIFE_ISSUES)
+        if not wildlife_issues:
+            wildlife_issues = app.report.get_wildlife_issue_list()
+            app.ddb_cache.put(CKEY_WILDLIFE_ISSUES, wildlife_issues)
+
+        other_issues = app.ddb_cache.get(CKEY_OTHER_ISSUES)
+        if not other_issues:
+            other_issues = app.report.get_other_issue_list()
+            app.ddb_cache.put(CKEY_OTHER_ISSUES, other_issues)
+
+        places = app.ddb_cache.get(CKEY_PLACES)
+        if not places:
+            places = app.report.get_places_list()
+            app.ddb_cache.put(CKEY_PLACES, places)
 
     blocks = []
     blocks.append(
@@ -178,6 +194,7 @@ def open_disturbance_report_modal(trigger, state):
         if "expired" in repr(ex):
             logger.warning("Received trigger expired - ignoring")
         else:
+            logger.error("views.open error - payload:{}".format(view))
             raise
 
 
@@ -223,7 +240,7 @@ def handle_report_submit_modal(rjson):
             )
         else:
             # This is from Home button - no report started yet
-            nr, msg = app.report.create(
+            rid, msg = app.report.create(
                 rjson["view"]["callback_id"], rjson["user"], dinfo
             )
 

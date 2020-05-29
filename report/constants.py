@@ -1,15 +1,16 @@
-# Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2020 by J. Christopher Wagner (jwag). All rights reserved.
 
 LOG_FORMAT = "%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s"
 DATE_FMT = "%m/%d/%Y %H:%M:%S"
 
 STATUS_PLACEHOLDER = "placeholder"
-STATUS_REPORTED = "reported"
-STATUS_CONFIRMED = "confirmed"
-STATUS_CLOSED = "closed"
 TYPE_TRAIL = "trail"
 TYPE_DISTURBANCE = "disturbance"
-KIOSK_RESOLVED_UNKNOWN = "unknown"
+
+# Keys for caching
+CKEY_WILDLIFE_ISSUES = "wissues"
+CKEY_OTHER_ISSUES = "oissues"
+CKEY_PLACES = "placed"
 
 TRAIL_VALUE_2_DESC = {
     "tll": "Lace Lichen",

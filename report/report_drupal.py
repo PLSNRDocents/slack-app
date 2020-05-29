@@ -60,7 +60,7 @@ class Report:
         self._config = config
         self._logger = logging.getLogger(__name__)
         self._site = DrupalApi(
-            config["PLSNR_JSON_USERNAME"],
+            config["PLSNR_USERNAME"],
             config["PLSNR_PASSWORD"],
             "{}/plsnr1933api".format(config["PLSNR_HOST"]),
             config["SSL_VERIFY"],
@@ -87,7 +87,7 @@ class Report:
                 "Cannot map slack user {} to PLSNR website user".format(who["name"]),
             )
 
-        nr.id = self._site.create_disturbance_report(
+        rid, msg = self._site.create_disturbance_report(
             nr.create_datetime,
             nr.details,
             nr.wildlife_issues,
@@ -95,8 +95,8 @@ class Report:
             nr.reporter_id,
             nr.location,
         )
-        self._logger.info("Created report {}".format(nr.id))
-        return nr, None
+        self._logger.info(f"Created report {rid}: {msg}")
+        return rid, msg
 
     @staticmethod
     def _taxid2name(tax_id_list, report_ids):
@@ -142,8 +142,8 @@ class Report:
 
     def get_other_issue_list(self):
         # Return a list of tuple (<display_name>, <id>) of possible other issues
-        wissues = self._site.get_taxonomy("other")
-        return sorted([(d["name"], d["id"]) for d in wissues])
+        oissues = self._site.get_taxonomy("other")
+        return sorted([(d["name"], d["id"]) for d in oissues])
 
     def get_places_list(self):
         # Return a list of tuple (<display_name>, <id>)

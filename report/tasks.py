@@ -1,4 +1,4 @@
-# Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2020 by J. Christopher Wagner (jwag). All rights reserved.
 
 """
 Scheduled tasks invoke via zappa
@@ -13,9 +13,10 @@ import importlib
 import logging
 import os
 
-from constants import LOG_FORMAT, DATE_FMT
+from constants import LOG_FORMAT, CKEY_OTHER_ISSUES, CKEY_PLACES, CKEY_WILDLIFE_ISSUES, DATE_FMT
 import dynamo
 import plweb
+import report_drupal
 
 
 logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FMT, level=logging.INFO)
@@ -42,22 +43,39 @@ def _setup():
 
 
 def prime_cache():
+    """
+    This is run as a 'cron' task via zappa.
+    Remember that lambdas are stateless - so we have to actually store this
+    stuff in a DB (which is fast enough < 3 seconds) so we can respond to slack
+    API calls before trigger_ids etc time out.
+    """
     config = _setup()
     logger.info("prime_cache: init db")
-    ddb = dynamo.DDB(config)
-    ddb_cache = dynamo.DDBCache(config, ddb)
 
-    today = datetime.datetime.now(tz.tzutc())
-    which_days = [
-        today.strftime("%Y%m%d"),
-        (today + datetime.timedelta(days=1)).strftime("%Y%m%d"),
-    ]
+    try:
+        ddb = dynamo.DDB(config)
+        ddb_cache = dynamo.DDBCache(config, ddb)
+        plwebsite = plweb.Plweb(config)
+        report = report_drupal.Report(config)
 
-    where = "all"
-    for day in which_days:
-        ckey = "{}:{}".format(day, where)
-        atinfo = plweb.whoat(day, where)
-        ddb_cache.put(ckey, atinfo)
+        today = datetime.datetime.now(tz.tzutc())
+        which_days = [
+            today.strftime("%Y%m%d"),
+            (today + datetime.timedelta(days=1)).strftime("%Y%m%d"),
+        ]
+
+        where = "all"
+        for day in which_days:
+            ckey = "{}:{}".format(day, where)
+            atinfo = plwebsite.whoat(day, where)
+            ddb_cache.put(ckey, atinfo)
+
+        logger.info("prime_cache: reports")
+        ddb_cache.put(CKEY_PLACES, report.get_places_list())
+        ddb_cache.put(CKEY_WILDLIFE_ISSUES, report.get_wildlife_issue_list())
+        ddb_cache.put(CKEY_OTHER_ISSUES, report.get_other_issue_list())
+    except Exception as exc:
+        logger.error("Task failed: {}".format(exc))
 
 
 def backup():

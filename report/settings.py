@@ -6,7 +6,6 @@ class Settings:
     ENABLE_TRAIL_REPORT = False
 
     PLSNR_USERNAME = None
-    PLSNR_JSON_USERNAME = None
     PLSNR_PASSWORD = None
 
     SSL_VERIFY = True
