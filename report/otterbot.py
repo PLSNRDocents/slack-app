@@ -13,7 +13,6 @@ import re
 import traceback
 
 import asyncev
-from constants import TYPE_TRAIL
 
 from quotes import QUOTES
 from slack_api import (
@@ -219,6 +218,11 @@ def talk_to_me(event_id, event):
                         ],
                     )
                     atinfo = app.plweb.whoat(lday.strftime("%Y%m%d"), where)
+                    atinfo.update(
+                        app.sa.whoat(
+                            lday.strftime("%Y%m%d"), app.config["WHICH_ACTIVITIES"]
+                        )
+                    )
                     app.ddb_cache.put(ckey, atinfo)
                 blocks = utils.atinfo_to_blocks(atinfo, lday)
 

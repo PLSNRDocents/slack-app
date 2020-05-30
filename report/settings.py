@@ -10,6 +10,13 @@ class Settings:
 
     SSL_VERIFY = True
 
+    # For 'at' - which calendars etc should we scrape.
+    # WHICH_SCRAPE = ["info", "whalers", "public", "gate", "other"]
+    WHICH_SCRAPE = []
+
+    # For 'at' - which scheduled_activities should we fetch?
+    WHICH_ACTIVITIES = ["transitional"]
+
 
 class DevSettings(Settings):
     EV_MODE = "ev"

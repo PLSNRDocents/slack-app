@@ -9,7 +9,6 @@ from datetime import datetime
 from dateutil import tz
 import logging
 
-from drupal_api import DrupalApi
 import slack_api
 
 from constants import (
@@ -56,15 +55,10 @@ class ReportModel:
 
 
 class Report:
-    def __init__(self, config):
+    def __init__(self, config, site):
         self._config = config
         self._logger = logging.getLogger(__name__)
-        self._site = DrupalApi(
-            config["PLSNR_USERNAME"],
-            config["PLSNR_PASSWORD"],
-            "{}/plsnr1933api".format(config["PLSNR_HOST"]),
-            config["SSL_VERIFY"],
-        )
+        self._site = site
 
     def _initrm(self):
         dt = datetime.now(tz.tzutc())
@@ -119,10 +113,10 @@ class Report:
         for dr in dreports:
             nr = ReportModel(**dr)
             if nr.wildlife_issues:
-                tax_ids = self._site.get_taxonomy("wildlife")
+                tax_ids = self._site.get_taxonomy("wildlife_disturbance")
                 nr.wildlife_issues = Report._taxid2name(tax_ids, nr.wildlife_issues)
             if nr.other_issues:
-                tax_ids = self._site.get_taxonomy("other")
+                tax_ids = self._site.get_taxonomy("other_disturbance")
                 nr.other_issues = Report._taxid2name(tax_ids, nr.other_issues)
             if nr.location:
                 tax_ids = self._site.get_taxonomy("places")
@@ -137,12 +131,12 @@ class Report:
 
     def get_wildlife_issue_list(self):
         # Return a list of tuple (<display_name>, <id>) of possible wildlife issues
-        wissues = self._site.get_taxonomy("wildlife")
+        wissues = self._site.get_taxonomy("wildlife_disturbance")
         return sorted([(d["name"], d["id"]) for d in wissues])
 
     def get_other_issue_list(self):
         # Return a list of tuple (<display_name>, <id>) of possible other issues
-        oissues = self._site.get_taxonomy("other")
+        oissues = self._site.get_taxonomy("other_disturbance")
         return sorted([(d["name"], d["id"]) for d in oissues])
 
     def get_places_list(self):

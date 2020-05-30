@@ -2,10 +2,18 @@
 
 import os
 
-import plweb
+from plweb import Plweb
+
+CONFIG = dict(
+    PLSNR_USERNAME="me",
+    PLSNR_PASSWORD="pass",
+    PLSNR_HOST="http://localhost",
+    SSL_VERIFY=True,
+)
 
 
 def test_today():
+    plweb = Plweb(CONFIG)
     with open(os.path.join(os.path.dirname(__file__), "data/info.html")) as fp:
         page = fp.read()
         ans = plweb.at_station(page, "20191022")
@@ -17,6 +25,7 @@ def test_today_bom():
     """ Current website doesn't handle timezones and there end of month
     well - so early on the First - it still shows last month first.
     Also - this makes 'tomorrow' work across months. """
+    plweb = Plweb(CONFIG)
     with open(os.path.join(os.path.dirname(__file__), "data/info-dec1.html")) as fp:
         page = fp.read()
         ans = plweb.at_station(page, "20191201")
@@ -25,6 +34,7 @@ def test_today_bom():
 
 
 def test_anyday():
+    plweb = Plweb(CONFIG)
     with open(os.path.join(os.path.dirname(__file__), "data/info.html")) as fp:
         page = fp.read()
         ans = plweb.at_station(page, "20191002")
@@ -33,6 +43,7 @@ def test_anyday():
 
 
 def test_today_tz():
+    plweb = Plweb(CONFIG)
     with open(
         os.path.join(os.path.dirname(__file__), "data/whalers-tz-error.html")
     ) as fp:
@@ -43,6 +54,7 @@ def test_today_tz():
 
 
 def test_tomorrow():
+    plweb = Plweb(CONFIG)
     with open(os.path.join(os.path.dirname(__file__), "data/info.html")) as fp:
         page = fp.read()
         ans = plweb.at_station(page, "20191023")
@@ -51,6 +63,7 @@ def test_tomorrow():
 
 
 def test_pw():
+    plweb = Plweb(CONFIG)
     with open(os.path.join(os.path.dirname(__file__), "data/public_walks.html")) as fp:
         page = fp.read()
         ans = plweb.at_pw(page, "20190927")
@@ -58,6 +71,7 @@ def test_pw():
 
 
 def test_interp():
+    plweb = Plweb(CONFIG)
     with open(os.path.join(os.path.dirname(__file__), "data/interp.html")) as fp:
         page = fp.read()
         ans = plweb.at_pw(page, "20190913")
@@ -70,15 +84,15 @@ def test_interp():
 
 
 def test_mint(requests_mock):
-
+    plweb = Plweb(CONFIG)
     with open(
         os.path.join(os.path.dirname(__file__), "data/activity_detail.html")
     ) as fp:
-        requests_mock.get("{}/node/111772".format(plweb.URL), text=fp.read())
+        requests_mock.get("{}/node/111772".format("http://localhost"), text=fp.read())
     with open(
         os.path.join(os.path.dirname(__file__), "data/node111803_detail.html")
     ) as fp:
-        requests_mock.get("{}/node/111803".format(plweb.URL), text=fp.read())
+        requests_mock.get("{}/node/111803".format("http://localhost"), text=fp.read())
 
     with open(os.path.join(os.path.dirname(__file__), "data/mint.html")) as fp:
         page = fp.read()

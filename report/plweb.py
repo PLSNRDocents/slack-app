@@ -15,6 +15,7 @@ IDX_TO_TIME = ["label", "9-11", "11-1", "1-3", "3-5"]
 
 class Plweb:
     def __init__(self, config):
+        self._config = config
         self._logger = logging.getLogger(__name__)
         self.username = config["PLSNR_USERNAME"]
         self.password = config["PLSNR_PASSWORD"]
@@ -265,7 +266,7 @@ class Plweb:
             },
         }
         if where == "all":
-            where = ["info", "whalers", "public", "gate", "other"]
+            where = self._config["WHICH_SCRAPE"]
         elif not isinstance(where, list):
             if where.startswith("info"):
                 where = ["info"]

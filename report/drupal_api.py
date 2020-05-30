@@ -16,12 +16,6 @@ from constants import TYPE_DISTURBANCE
 
 logger = logging.getLogger(__name__)
 
-ISSUETYPE_TO_TAXONOMYTYPE = {
-    "wildlife": "wildlife_disturbance",
-    "other": "other_disturbance",
-    "places": "places",
-}
-
 
 class DrupalApi:
     def __init__(self, username, password, server_url, ssl_verify):
@@ -39,9 +33,31 @@ class DrupalApi:
         self.session.auth = (username, password)
         self.session.verify = ssl_verify
 
+    def simple_get(self, path, params, fetchall=True):
+        next_batch = f"{self.server_url}{path}"
+        rdata = []
+        while next_batch:
+            rv = self.session.get(next_batch, params=params)
+            rv.raise_for_status()
+            jbody = rv.json()
+            rdata.extend(jbody["data"])
+            if fetchall:
+                next_batch = jbody["links"].get("next", None)
+            else:
+                next_batch = None
+            if next_batch:
+                next_batch = next_batch["href"]
+                params = {}
+        return rdata
+
     @cachetools.func.ttl_cache(60, ttl=(60 * 5))
     def get_taxonomy(self, which):
         """
+
+        The 'name' in Drupal as returned in relationships looks like:
+        taxonomy_term--xxxx (e.g. taxonomy_term--wildlife_disturbance)
+        We accept 'which' either the entire name or 'xxx'.
+
         N.B. while this is cached - that is mostly for testing - it doesn't
         really help in production when this is a lambda. That's why higher level code
         actually writes this to a DB cache (so we can respond to slack fast enough).
@@ -54,12 +70,11 @@ class DrupalApi:
           },...
         ]
         """
+        tterm = which.split("--", 1)
+        if len(tterm) == 2:
+            tterm = tterm[1]
 
-        rv = self.session.get(
-            "{}/taxonomy_term/{}".format(
-                self.server_url, ISSUETYPE_TO_TAXONOMYTYPE[which]
-            )
-        )
+        rv = self.session.get(f"{self.server_url}/taxonomy_term/{tterm}")
         rv.raise_for_status()
         jbody = rv.json()
 

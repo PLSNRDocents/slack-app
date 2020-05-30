@@ -27,15 +27,17 @@ import logging
 import threading
 import os
 
-from flask import Flask, redirect, url_for
+from flask import Flask
 from flask_moment import Moment
 
 from api import api
 import asyncev
 from constants import LOG_FORMAT, DATE_FMT
+from drupal_api import DrupalApi
 from dynamo import DDB, DDBCache
 import plweb
 from report_drupal import Report as DrupalReport
+from scheduled_activity import ScheduledActivity
 from slack_api import get_bot_info
 
 REQUIRED_CONFIG = ["SIGNING_SECRET", "BOT_TOKEN", "SECRET_KEY"]
@@ -73,7 +75,15 @@ def create_app():
     # app.report = dynamo.Report(app.config, app.ddb)
     app.ddb_cache = DDBCache(app.config, app.ddb)
 
-    app.report = DrupalReport(app.config)
+    site = DrupalApi(
+        app.config["PLSNR_USERNAME"],
+        app.config["PLSNR_PASSWORD"],
+        "{}/plsnr1933api".format(app.config["PLSNR_HOST"]),
+        app.config["SSL_VERIFY"],
+    )
+
+    app.report = DrupalReport(app.config, site)
+    app.sa = ScheduledActivity(app.config, site)
     app.register_blueprint(api)
 
     app.plweb = plweb.Plweb(app.config)

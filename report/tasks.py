@@ -13,10 +13,18 @@ import importlib
 import logging
 import os
 
-from constants import LOG_FORMAT, CKEY_OTHER_ISSUES, CKEY_PLACES, CKEY_WILDLIFE_ISSUES, DATE_FMT
+from constants import (
+    LOG_FORMAT,
+    CKEY_OTHER_ISSUES,
+    CKEY_PLACES,
+    CKEY_WILDLIFE_ISSUES,
+    DATE_FMT,
+)
+from drupal_api import DrupalApi
 import dynamo
 import plweb
 import report_drupal
+from scheduled_activity import ScheduledActivity
 
 
 logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FMT, level=logging.INFO)
@@ -53,10 +61,17 @@ def prime_cache():
     logger.info("prime_cache: init db")
 
     try:
+        site = DrupalApi(
+            config["PLSNR_USERNAME"],
+            config["PLSNR_PASSWORD"],
+            "{}/plsnr1933api".format(config["PLSNR_HOST"]),
+            config["SSL_VERIFY"],
+        )
         ddb = dynamo.DDB(config)
         ddb_cache = dynamo.DDBCache(config, ddb)
         plwebsite = plweb.Plweb(config)
-        report = report_drupal.Report(config)
+        report = report_drupal.Report(config, site)
+        sa = ScheduledActivity(config, site)
 
         today = datetime.datetime.now(tz.tzutc())
         which_days = [
@@ -68,6 +83,7 @@ def prime_cache():
         for day in which_days:
             ckey = "{}:{}".format(day, where)
             atinfo = plwebsite.whoat(day, where)
+            atinfo.update(sa.whoat(day, config["WHICH_ACTIVITIES"]))
             ddb_cache.put(ckey, atinfo)
 
         logger.info("prime_cache: reports")
