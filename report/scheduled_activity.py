@@ -1,7 +1,6 @@
 # Copyright 2020 by J. Christopher Wagner (jwag). All rights reserved.
 
 import logging
-from typing import List
 
 from dateutil import parser as date_parser
 from dateutil import relativedelta
@@ -16,7 +15,7 @@ class ScheduledActivity:
         self._logger = logging.getLogger(__name__)
         self._site = site
 
-    def whoat(self, when, which: List):
+    def whoat(self, when, which):
         """
         when has format: 20191001
 
@@ -33,14 +32,11 @@ class ScheduledActivity:
             ],
         <header2>: []
         }
-
-        TODO: everything - which activity type, what title should be?
-        Step 1 - taxon1 is title.
-
         """
 
         rawdt = date_parser.parse(when)
         dt = rawdt.replace(tzinfo=tz.gettz("America/Los Angeles")).astimezone(tz.UTC)
+        self._logger.info(f"whoat which: {which} when: {dt.isoformat()}")
 
         filters = {
             "filter[from][condition][path]": "start_time",
@@ -51,15 +47,24 @@ class ScheduledActivity:
             "filter[to][condition][value]": (
                 dt + relativedelta.relativedelta(days=1)
             ).isoformat(),
-            "filter[at][condition][path]": "activity_type",
-            "filter[at][condition][operator]": "=",
-            "filter[at][condition][value]": which[0],
-            "sort": "start_time",
         }
+        if which != "all":
+            filters.update(
+                {
+                    "filter[at][condition][path]": "activity_type",
+                    "filter[at][condition][operator]": "=",
+                    "filter[at][condition][value]": which,
+                }
+            )
+        filters.update({"sort": "start_time"})
+
+        self._logger.info(f"params: {filters}")
 
         results = self._site.simple_get(
             "/scheduled_activity/scheduled_activity", params=filters
         )
+        views = self._site.get_activity_views()
+        types = self._site.get_activity_types()
 
         atinfo = {}
         for r in results:
@@ -69,18 +74,52 @@ class ScheduledActivity:
             presenter = self._site.get_user(rels["presenter"]["data"]["id"])
             me = presenter["attributes"]["name"]
 
-            # For transitional - use taxon1 as a 'header'
-            title = "unk"
-            if rels["taxon1"]["data"]:
-                taxon1 = self._site.get_taxonomy(rels["taxon1"]["data"]["type"])
-                taxon1_names = [
-                    t["name"] for t in taxon1 if t["id"] == rels["taxon1"]["data"]["id"]
-                ]
-                if taxon1_names:
-                    title = taxon1_names[0]
-
-            # For transitional - use taxon1 as a 'header'
+            title = self.find_what(
+                r, views, types.get(r["attributes"]["activity_type"], None)
+            )
             if title not in atinfo:
                 atinfo[title] = []
             atinfo[title].append(dict(who=[me], time=f"{st}-{et}"))
+        if not atinfo:
+            atinfo["Oh no!"] = [dict(who=["No one"], time="all day")]
         return atinfo
+
+    def find_what(self, sa, views, atype):
+        # look at activity view to figure out what field is 'what'
+        # Simplification - assume different views don't have same activity type
+        # with different 'what' fields.
+        what_value = "unk"
+        for view in views.values():
+            sa_atype = sa["attributes"]["activity_type"]
+            if sa_atype in view["activity_types"]:
+                what = view["activity_types"][sa_atype].get("what", None)
+                if what:
+                    if what["week_entry"]["enabled"]:
+                        field = what["week_entry"]["sa_field_name"]
+                    elif what["month_entry"]["enabled"]:
+                        field = what["month_entry"]["sa_field_name"]
+                    else:
+                        field = None
+                    what_value = self.find_what_value(
+                        field, sa["attributes"][field], atype,
+                    )
+                    return what_value
+        return what_value
+
+    def find_what_value(self, field_name, field_value, atype):
+        # self._logger.info(f"find what value {field_name} {field_value} {atype}")
+        if not atype:
+            return "unk"
+        if field_name == "title":
+            return field_value
+        elif field_name == "custom1":
+            options = atype["custom_fields"][0]["options"]
+            for option in options:
+                if option["key"] == field_value:
+                    return option["name"]
+        elif field_name == "custom2":
+            options = atype["custom_fields"][1]["options"]
+            for option in options:
+                if option["key"] == field_value:
+                    return option["name"]
+        return "unk"

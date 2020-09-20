@@ -98,7 +98,9 @@ class DDBCache:
             "update_datetime": datetime.now(tz.tzutc()).isoformat(),
         }
         self._logger.info(
-            "Setting cache key {} to table {}".format(ckey, TN_LOOKUP["cache"])
+            "Setting cache key {} to table {} length {}".format(
+                ckey, TN_LOOKUP["cache"], len(cvalue)
+            )
         )
         table.put_item(Item=item)
 

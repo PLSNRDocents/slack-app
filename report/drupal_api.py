@@ -50,6 +50,31 @@ class DrupalApi:
                 params = {}
         return rdata
 
+    def get_activity_views(self):
+        """
+        Get (and cache) activity views.
+        Returns dict of name: attributes. where 'name' is the machine name
+        (look at "name" for display name)
+        """
+        raw_views = self.simple_get("/activity_view/activity_view", None)
+        views = {
+            item["attributes"]["drupal_internal__id"]: item["attributes"]
+            for item in raw_views
+        }
+        return views
+
+    def get_activity_types(self):
+        """
+        Get (and cache) activity types.
+        Returns dict of name: attributes. where 'name' is the machine name
+        """
+        raw_types = self.simple_get("/activity_type/activity_type", None)
+        views = {
+            item["attributes"]["drupal_internal__id"]: item["attributes"]
+            for item in raw_types
+        }
+        return views
+
     @cachetools.func.ttl_cache(60, ttl=(60 * 5))
     def get_taxonomy(self, which):
         """
@@ -73,6 +98,8 @@ class DrupalApi:
         tterm = which.split("--", 1)
         if len(tterm) == 2:
             tterm = tterm[1]
+        else:
+            tterm = which
 
         rv = self.session.get(f"{self.server_url}/taxonomy_term/{tterm}")
         rv.raise_for_status()

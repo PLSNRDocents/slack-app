@@ -16,7 +16,7 @@ If ngrok was killed/machine restarted - go to slack app console and replace
 the host name (event subscriptions and interactive components)
 
 # Updating AWS
-cd reports
+cd report
 zappa update [dev|live]
 
 Note that secrets are stored in AWS - have to change them there.

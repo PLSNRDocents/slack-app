@@ -25,6 +25,7 @@ import dynamo
 import plweb
 import report_drupal
 from scheduled_activity import ScheduledActivity
+import utils
 
 
 logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FMT, level=logging.INFO)
@@ -75,15 +76,15 @@ def prime_cache():
 
         today = datetime.datetime.now(tz.tzutc())
         which_days = [
-            today.strftime("%Y%m%d"),
-            (today + datetime.timedelta(days=1)).strftime("%Y%m%d"),
+            today,
+            today + datetime.timedelta(days=1),
         ]
 
         where = "all"
         for day in which_days:
-            ckey = "{}:{}".format(day, where)
-            atinfo = plwebsite.whoat(day, where)
-            atinfo.update(sa.whoat(day, config["WHICH_ACTIVITIES"]))
+            lday, ckey = utils.at_cache_helper(day, where)
+            atinfo = plwebsite.whoat(lday.strftime("%Y%m%d"), where)
+            atinfo.update(sa.whoat(lday.strftime("%Y%m%d"), where))
             ddb_cache.put(ckey, atinfo)
 
         logger.info("prime_cache: reports")
