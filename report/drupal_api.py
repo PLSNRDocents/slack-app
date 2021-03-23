@@ -52,7 +52,7 @@ class DrupalApi:
 
     def get_activity_views(self):
         """
-        Get (and cache) activity views.
+        Get activity views.
         Returns dict of name: attributes. where 'name' is the machine name
         (look at "name" for display name)
         """
@@ -65,7 +65,7 @@ class DrupalApi:
 
     def get_activity_types(self):
         """
-        Get (and cache) activity types.
+        Get activity types.
         Returns dict of name: attributes. where 'name' is the machine name
         """
         raw_types = self.simple_get("/activity_type/activity_type", None)

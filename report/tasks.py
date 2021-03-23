@@ -51,6 +51,36 @@ def _setup():
     return config
 
 
+def prime_cache_internal(config, ddb_cache):
+    site = DrupalApi(
+        config["PLSNR_USERNAME"],
+        config["PLSNR_PASSWORD"],
+        "{}/plsnr1933api".format(config["PLSNR_HOST"]),
+        config["SSL_VERIFY"],
+    )
+    plwebsite = plweb.Plweb(config)
+    report = report_drupal.Report(config, site)
+    sa = ScheduledActivity(config, site)
+
+    today = datetime.datetime.now(tz.tzutc())
+    which_days = [
+        today,
+        today + datetime.timedelta(days=1),
+    ]
+
+    where = "all"
+    for day in which_days:
+        lday, ckey = utils.at_cache_helper(day, where)
+        atinfo = plwebsite.whoat(lday.strftime("%Y%m%d"), where)
+        atinfo.update(sa.whoat(lday.strftime("%Y%m%d"), where))
+        ddb_cache.put(ckey, atinfo)
+
+    logger.info("prime_cache: reports")
+    ddb_cache.put(CKEY_PLACES, report.get_places_list())
+    ddb_cache.put(CKEY_WILDLIFE_ISSUES, report.get_wildlife_issue_list())
+    ddb_cache.put(CKEY_OTHER_ISSUES, report.get_other_issue_list())
+
+
 def prime_cache():
     """
     This is run as a 'cron' task via zappa.
@@ -62,37 +92,11 @@ def prime_cache():
     logger.info("prime_cache: init db")
 
     try:
-        site = DrupalApi(
-            config["PLSNR_USERNAME"],
-            config["PLSNR_PASSWORD"],
-            "{}/plsnr1933api".format(config["PLSNR_HOST"]),
-            config["SSL_VERIFY"],
-        )
         ddb = dynamo.DDB(config)
         ddb_cache = dynamo.DDBCache(config, ddb)
-        plwebsite = plweb.Plweb(config)
-        report = report_drupal.Report(config, site)
-        sa = ScheduledActivity(config, site)
-
-        today = datetime.datetime.now(tz.tzutc())
-        which_days = [
-            today,
-            today + datetime.timedelta(days=1),
-        ]
-
-        where = "all"
-        for day in which_days:
-            lday, ckey = utils.at_cache_helper(day, where)
-            atinfo = plwebsite.whoat(lday.strftime("%Y%m%d"), where)
-            atinfo.update(sa.whoat(lday.strftime("%Y%m%d"), where))
-            ddb_cache.put(ckey, atinfo)
-
-        logger.info("prime_cache: reports")
-        ddb_cache.put(CKEY_PLACES, report.get_places_list())
-        ddb_cache.put(CKEY_WILDLIFE_ISSUES, report.get_wildlife_issue_list())
-        ddb_cache.put(CKEY_OTHER_ISSUES, report.get_other_issue_list())
+        prime_cache_internal(config, ddb_cache)
     except Exception as exc:
-        logger.error("Task failed: {}".format(exc))
+        logger.error("Task failed: {}".format(exc), exc_info=True)
 
 
 def backup():
@@ -104,3 +108,16 @@ def backup():
     for table in dynamo.TN_LOOKUP.values():
         rv = ddb.client.create_backup(TableName=table, BackupName=table + dt)
         logger.info("Backup response for table {}: {}".format(table, rv))
+
+
+if __name__ == "__main__":
+    config = _setup()
+    gddb = dynamo.DDB(config)
+    gddb_cache = dynamo.DDBCache(config, gddb)
+    prime_cache_internal(config, gddb_cache)
+
+    today = datetime.datetime.now(tz.tzutc())
+    lday, ckey = utils.at_cache_helper(today, "all")
+    atinfo = gddb_cache.get(ckey)
+    blocks = utils.atinfo_to_blocks(atinfo, lday)
+    print(blocks)

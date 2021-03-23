@@ -1,6 +1,7 @@
 # Copyright 2020 by J. Christopher Wagner (jwag). All rights reserved.
 
 import logging
+import re
 
 from dateutil import parser as date_parser
 from dateutil import relativedelta
@@ -49,13 +50,8 @@ class ScheduledActivity:
             ).isoformat(),
         }
         if which != "all":
-            filters.update(
-                {
-                    "filter[at][condition][path]": "activity_type",
-                    "filter[at][condition][operator]": "=",
-                    "filter[at][condition][value]": which,
-                }
-            )
+            filters.update({"filter[activity_type]": which})
+        filters.update({"filter[cancelled]": 0})
         filters.update({"sort": "start_time"})
 
         self._logger.info(f"params: {filters}")
@@ -70,16 +66,25 @@ class ScheduledActivity:
         for r in results:
             rels = r["relationships"]
             st = date_parser.parse(r["attributes"]["start_time"]).strftime("%-I:%M%p")
-            et = date_parser.parse(r["attributes"]["end_time"]).strftime("%-I:%M%p")
-            presenter = self._site.get_user(rels["presenter"]["data"]["id"])
-            me = presenter["attributes"]["name"]
+            end_time = r["attributes"]["end_time"]
+            if end_time:
+                et = date_parser.parse(end_time).strftime("%-I:%M%p")
+                when = f"{st}-{et}"
+            else:
+                when = f"{st}"
+
+            presenter = rels["presenter"]["data"]
+            if presenter:
+                me = self._site.get_user(presenter["id"])["attributes"]["name"]
+            else:
+                me = [""]
 
             title = self.find_what(
                 r, views, types.get(r["attributes"]["activity_type"], None)
             )
             if title not in atinfo:
                 atinfo[title] = []
-            atinfo[title].append(dict(who=[me], time=f"{st}-{et}"))
+            atinfo[title].append(dict(who=[me], time=when))
         if not atinfo:
             atinfo["Oh no!"] = [dict(who=["No one"], time="all day")]
         return atinfo
@@ -95,19 +100,19 @@ class ScheduledActivity:
                 what = view["activity_types"][sa_atype].get("what", None)
                 if what:
                     if what["week_entry"]["enabled"]:
-                        field = what["week_entry"]["sa_field_name"]
+                        markup = what["week_entry"]["markup"]
                     elif what["month_entry"]["enabled"]:
-                        field = what["month_entry"]["sa_field_name"]
+                        markup = what["month_entry"]["markup"]
                     else:
-                        field = None
+                        markup = None
                     what_value = self.find_what_value(
-                        field, sa["attributes"][field], atype,
+                        markup, sa["attributes"], atype,
                     )
                     return what_value
         return what_value
 
-    def find_what_value(self, field_name, field_value, atype):
-        # self._logger.info(f"find what value {field_name} {field_value} {atype}")
+    def find_where_value(self, field_name, field_value, atype):
+        # self._logger.info(f"find where value {field_name} {field_value} {atype}")
         if not atype:
             return "unk"
         if field_name == "title":
@@ -123,3 +128,23 @@ class ScheduledActivity:
                 if option["key"] == field_value:
                     return option["name"]
         return "unk"
+
+    def find_what_value(self, markup, sa_attributes, atype):
+        # self._logger.info(f"find what value markup: {markup} {sa_attributes} {atype}")
+        if not atype:
+            return "unk"
+        # support @title, @custom1, @custom2, @activity_type
+        # Convert drupal style markup to python format style
+        fmarkup = re.sub(r"@([a-zA-Z_0-9]+)", r"{\1}", markup)
+        title = sa_attributes["title"]
+        activity_type = atype["name"]
+        custom1 = custom2 = None
+        options = atype["custom_fields"][0]["options"] or []
+        for option in options:
+            if option["key"] == sa_attributes["custom1"]:
+                custom1 = option["name"]
+        options = atype["custom_fields"][1]["options"] or []
+        for option in options:
+            if option["key"] == sa_attributes["custom1"]:
+                custom2 = option["name"]
+        return fmarkup.format(title=title, activity_type=activity_type, custom1=custom1, custom2=custom2)
