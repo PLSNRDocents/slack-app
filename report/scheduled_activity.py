@@ -1,4 +1,4 @@
-# Copyright 2020 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2021 by J. Christopher Wagner (jwag). All rights reserved.
 
 import logging
 import re
@@ -62,6 +62,9 @@ class ScheduledActivity:
         views = self._site.get_activity_views()
         types = self._site.get_activity_types()
 
+        # fetch all signups for all activities
+        signups = self.get_signups(results)
+
         atinfo = {}
         for r in results:
             rels = r["relationships"]
@@ -73,18 +76,23 @@ class ScheduledActivity:
             else:
                 when = f"{st}"
 
+            who = []
             presenter = rels["presenter"]["data"]
             if presenter:
-                me = self._site.get_user(presenter["id"])["attributes"]["name"]
-            else:
-                me = [""]
+                who.append(self._site.get_user(presenter["id"])["attributes"]["name"])
+            sid = r["attributes"]["drupal_internal__id"]
+            if sid in signups:
+                for user in signups[sid]:
+                    who.append(self._site.get_user(user)["attributes"]["name"])
 
-            title = self.find_what(
-                r, views, types.get(r["attributes"]["activity_type"], None)
-            )
-            if title not in atinfo:
-                atinfo[title] = []
-            atinfo[title].append(dict(who=[me], time=when))
+            # This is 'whoat' - if no who then don't add to return dict
+            if who:
+                title = self.find_what(
+                    r, views, types.get(r["attributes"]["activity_type"], None)
+                )
+                if title not in atinfo:
+                    atinfo[title] = []
+                atinfo[title].append(dict(who=who, time=when))
         if not atinfo:
             atinfo["Oh no!"] = [dict(who=["No one"], time="all day")]
         return atinfo
@@ -104,9 +112,12 @@ class ScheduledActivity:
                     elif what["month_entry"]["enabled"]:
                         markup = what["month_entry"]["markup"]
                     else:
-                        markup = None
+                        # 'what' not in view for this activity type - default to name
+                        return atype["name"]
                     what_value = self.find_what_value(
-                        markup, sa["attributes"], atype,
+                        markup,
+                        sa["attributes"],
+                        atype,
                     )
                     return what_value
         return what_value
@@ -147,4 +158,29 @@ class ScheduledActivity:
         for option in options:
             if option["key"] == sa_attributes["custom1"]:
                 custom2 = option["name"]
-        return fmarkup.format(title=title, activity_type=activity_type, custom1=custom1, custom2=custom2)
+        return fmarkup.format(
+            title=title, activity_type=activity_type, custom1=custom1, custom2=custom2
+        )
+
+    def get_signups(self, results):
+        # for each activity get all signups and return dict of
+        # {activity_id: [list of UID]
+        filters = {
+            "filter[s][condition][path]": "activity_id",
+            "filter[s][condition][operator]": "IN",
+            "filter[s][condition][value]": {},
+        }
+        for r in results:
+            sid = r["attributes"]["drupal_internal__id"]
+            filters[f"filter[s][condition][value][{sid}]"] = sid
+
+        signups = self._site.simple_get(
+            "/scheduled_activity_signups/scheduled_activity_signups", params=filters
+        )
+        results = {}
+        for s in signups:
+            sid = s["attributes"]["activity_id"]
+            if sid not in results:
+                results[sid] = []
+            results[sid].append(s["relationships"]["user"]["data"]["id"])
+        return results

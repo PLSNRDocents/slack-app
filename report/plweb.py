@@ -24,7 +24,7 @@ class Plweb:
         self.session.verify = config["SSL_VERIFY"]
 
     def login(self):
-        rv = self.session.get("{url}".format(url=self.server_url))
+        rv = self.session.get(f"{self.server_url}")
         hc = BeautifulSoup(rv.text, features="html.parser")
         form_info = self.parse_form_data(hc, ["form_build_id", "form_id"])
         form_data = {
@@ -35,9 +35,9 @@ class Plweb:
             "form_id": form_info["form_id"],
         }
         # this should fill cookie jar
-        self._logger.info("Logging into plweb site as user {}".format(self.username))
+        self._logger.info(f"Logging into plweb site as user {self.username}")
         rv = self.session.post(
-            "{url}".format(url=self.server_url),
+            f"{self.server_url}",
             data=form_data,
             headers={
                 "Content-Type": "application/x-www-form-urlencoded",
@@ -68,7 +68,7 @@ class Plweb:
         return _special_info
 
     def at_station(self, page, when):
-        """ Returns a list:
+        """Returns a list:
         [{
             "time": <time>,
             "who": [<list of who>]
@@ -100,9 +100,7 @@ class Plweb:
                         # This is us.
                         ans = []
                         if len(rows) != 5:
-                            raise ParseError(
-                                "{} rows in at_station table".format(len(rows))
-                            )
+                            raise ParseError(f"{len(rows)} rows in at_station table")
                         for idx, row_data in enumerate(rows):
                             if idx > 0:
                                 # Each row has one or more <span>
@@ -112,7 +110,7 @@ class Plweb:
 
     @staticmethod
     def _gettime(d):
-        """ Parse time div
+        """Parse time div
         Public-Walks time is: <div><strong>9:30am</strong></div>
         Interp time is: <div><strong><time datetime="00Z">9:15am</time>
                          - <time datetime="00Z">11:15am</time>
@@ -120,7 +118,7 @@ class Plweb:
         """
         times = d.find_all("time")
         if len(times) == 2:
-            t = "{} - {}".format(times[0].text, times[1].text)
+            t = f"{times[0].text} - {times[1].text}"
         elif len(times) == 1:
             t = times[0].text
         else:
@@ -128,7 +126,7 @@ class Plweb:
         return t
 
     def at_pw(self, page, when):
-        """ Public Walks and Interp (gate greet) Calendar.
+        """Public Walks and Interp (gate greet) Calendar.
         Returns a list:
         [{
             "time": <time>,
@@ -161,7 +159,7 @@ class Plweb:
         return ans
 
     def at_activities(self, page, when):
-        """ Docent Activities Calendar.
+        """Docent Activities Calendar.
         Returns a list:
         [{
             "time": <time>,
@@ -294,18 +292,14 @@ class Plweb:
             info = locations[w]
             cal_url = info["cal_url"]
             if info["has_month"]:
-                cal_url += "/{}".format(when[0:6])
-            self._logger.info("Fetching {} calendar".format(cal_url))
-            rv = self.session.get("{url}/{ep}".format(url=self.server_url, ep=cal_url))
+                cal_url += f"/{when[0:6]}"
+            self._logger.info(f"Fetching {cal_url} calendar")
+            rv = self.session.get(f"{self.server_url}/{cal_url}")
             if rv.status_code == 403:
                 # need to log in.
-                self._logger.info(
-                    "Logging in to PLSNR web site {}".format(self.server_url)
-                )
+                self._logger.info(f"Logging in to PLSNR web site {self.server_url}")
                 self.login()
-                rv = self.session.get(
-                    "{url}/{ep}".format(url=self.server_url, ep=cal_url)
-                )
+                rv = self.session.get(f"{self.server_url}/{cal_url}")
             rv.raise_for_status()
             ans[info["title"]] = getattr(self, info["parser"])(rv.text, when)
         return ans

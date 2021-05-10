@@ -48,7 +48,7 @@ def top():
 
 @api.route("/interact", methods=["GET", "POST"])
 def submit():
-    """ Called from slack for all interactions (dialogs, button, etc). """
+    """Called from slack for all interactions (dialogs, button, etc)."""
     if not slack.WebClient.validate_slack_signature(
         signing_secret=current_app.config["SIGNING_SECRET"],
         data=request.get_data().decode("utf-8"),
@@ -94,7 +94,7 @@ def submit():
             value = rjson["actions"][0]["value"]
             run_async(current_app.config["EV_MODE"], handle_at, value, rjson)
         else:
-            logger.error("Unknown block actions block id {}".format(block_id))
+            logger.error(f"Unknown block actions block id {block_id}")
         return "", 200
 
     logger.error("Unhandled type {}: {}".format(rjson["type"], rjson))
@@ -129,7 +129,7 @@ def events():
         return dict(challenge=payload["challenge"])
     elif payload["type"] == "event_callback":
         event = payload["event"]
-        logger.info("Event id {} {}".format(event_id, event))
+        logger.info(f"Event id {event_id} {event}")
 
         if event["type"] == "app_mention":
             # let's chat
@@ -144,7 +144,7 @@ def events():
             subtype = event.get("subtype", "")
             if subtype and subtype != "file_share":
                 # ignore
-                logger.info("Ignoring message subtype {}".format(subtype))
+                logger.info(f"Ignoring message subtype {subtype}")
             elif event["user"] == get_bot_user_id():
                 logger.info("Ignoring message - its from me!")
             else:
@@ -175,9 +175,7 @@ def handle_file(event):
 
 def start_report(ttype, trigger, state):
     try:
-        logger.info(
-            "Opening modal type {} trigger_id {} state {}".format(ttype, trigger, state)
-        )
+        logger.info(f"Opening modal type {ttype} trigger_id {trigger} state {state}")
         if ttype == "trail":
             open_trail_report_modal(trigger, state)
         else:
@@ -187,7 +185,7 @@ def start_report(ttype, trigger, state):
 
 
 def handle_at(when, rjson):
-    """ Handle Home buttons for 'at'. """
+    """Handle Home buttons for 'at'."""
     app = asyncev.wapp
     with app.app_context():
         # userid = rjson["user"]["id"]
@@ -205,7 +203,7 @@ def handle_at(when, rjson):
         )
         atinfo = app.ddb_cache.get(ckey)
         if not atinfo:
-            logger.warning("No atinfo for ckey: {}".format(ckey))
+            logger.warning(f"No atinfo for ckey: {ckey}")
             view = {
                 "type": "modal",
                 "title": {"type": "plain_text", "text": "Hmm don't know that one"},

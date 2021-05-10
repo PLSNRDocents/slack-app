@@ -69,7 +69,7 @@ def talk_to_me(event_id, event):
                 # but no file (sigh).
                 if "files" in event:
                     finfo = get_file_info(event["files"][0]["id"])
-                    logger.warning("Empty text but file! {}".format(json.dumps(finfo)))
+                    logger.warning(f"Empty text but file! {json.dumps(finfo)}")
                     pme(
                         event,
                         "Sorry can't handle attachments via iphone,"
@@ -101,11 +101,11 @@ def talk_to_me(event_id, event):
                         )
                         issues = ""
                         if r.wildlife_issues:
-                            issues += "*{}*".format(r.wildlife_issues)
+                            issues += f"*{r.wildlife_issues}*"
                         if r.other_issues:
                             if issues:
                                 issues += " and "
-                            issues += "*{}*".format(r.other_issues)
+                            issues += f"*{r.other_issues}*"
                         text = (
                             "{date} _{who}_ reported:"
                             "\n{issues} {verb} _{location}_".format(

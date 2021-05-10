@@ -38,12 +38,12 @@ class ReportModel:
 
     @classmethod
     def field_list(cls) -> set:
-        """ Return set of all field names """
+        """Return set of all field names"""
         return {f.name for f in fields(cls)}
 
     @classmethod
     def user_field_list(cls) -> set:
-        """ Return set of all field names that are user/form settable """
+        """Return set of all field names that are user/form settable"""
         internal = {
             "id",
             "create_datetime",
@@ -62,7 +62,12 @@ class Report:
 
     def _initrm(self):
         dt = datetime.now(tz.tzutc())
-        nr = ReportModel(id="", type="Unknown", location="", create_datetime=dt,)
+        nr = ReportModel(
+            id="",
+            type="Unknown",
+            location="",
+            create_datetime=dt,
+        )
         return nr
 
     def _fillin(self, nr, rtype, who, dinfo):
@@ -161,7 +166,7 @@ class Report:
         return None, None, None
 
     def whoswho(self):
-        """ Return a dict:
+        """Return a dict:
         { "slack_id": {
             "slack_name": <name>,
             "web_name": <matched name>,
@@ -181,7 +186,7 @@ class Report:
                 info = {"slack_name": slack_profile["real_name"]}
                 # Match email - since we are a small org - matching name also works
                 # sometimes.
-                for uuid, attributes in all_users.items():
+                for _uuid, attributes in all_users.items():
                     if (
                         attributes.get("mail", "1") == slack_profile.get("email", "2")
                     ) or (
@@ -201,9 +206,9 @@ class Report:
     @staticmethod
     def id_to_name(rm):
         if rm.type == TYPE_TRAIL:
-            rid = "TR-{}".format(rm.id)
+            rid = f"TR-{rm.id}"
         elif rm.type == TYPE_DISTURBANCE:
-            rid = "DR-{}".format(rm.id)
+            rid = f"DR-{rm.id}"
         else:
             rid = rm.id
         return rid

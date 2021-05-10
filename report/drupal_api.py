@@ -110,12 +110,12 @@ class DrupalApi:
             terms.append({"name": d["attributes"]["name"], "id": d["id"]})
         if not terms:
             # that isn't right - don't cache
-            raise ValueError("No taxonomy terms returned for {}".format(which))
+            raise ValueError(f"No taxonomy terms returned for {which}")
         return terms
 
     def get_reports(self):
         rv = self.session.get(
-            "{}/node/disturbance_report".format(self.server_url),
+            f"{self.server_url}/node/disturbance_report",
             params={"sort": "-field_interaction_time", "page[limit]": "10"},
         )
         rv.raise_for_status()
@@ -198,14 +198,14 @@ class DrupalApi:
         }
 
         rv = self.session.post(
-            "{}/node/disturbance_report".format(self.server_url), json=dict(data=body)
+            f"{self.server_url}/node/disturbance_report", json=dict(data=body)
         )
         if rv.status_code >= 400:
             # Alas we seem to sometimes get a 500 with the error:
             #   The controller result claims to be providing relevant cache metadata,
             #   but leaked metadata was detected.
             # However the content was created just fine.
-            logger.warning("API failed code:{} Text:{}".format(rv.status_code, rv.text))
+            logger.warning(f"API failed code:{rv.status_code} Text:{rv.text}")
             if rv.status_code == 500 and "leaked metadata" in rv.text:
                 return None, "API returned error but report likely created"
             return None, "API failed"
@@ -216,7 +216,7 @@ class DrupalApi:
 
     @cachetools.func.ttl_cache(60, ttl=(60 * 60 * 8))
     def get_all_users(self):
-        """ Return a dict
+        """Return a dict
 
         { "id": {
             <user attributes>
@@ -225,7 +225,7 @@ class DrupalApi:
         """
 
         users = {}
-        next_batch = "{}/user/user".format(self.server_url)
+        next_batch = f"{self.server_url}/user/user"
         while next_batch:
             rv = self.session.get(next_batch)
             rv.raise_for_status()
@@ -241,7 +241,7 @@ class DrupalApi:
 
     @cachetools.func.ttl_cache(60, ttl=(60 * 5))
     def get_user(self, user_uuid):
-        rv = self.session.get("{}/user/user/{}".format(self.server_url, user_uuid))
+        rv = self.session.get(f"{self.server_url}/user/user/{user_uuid}")
         rv.raise_for_status()
         jbody = rv.json()
         return jbody["data"]

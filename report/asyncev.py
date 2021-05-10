@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def run_loop(loop):
-    """ Just used in local development (not lambda) """
+    """Just used in local development (not lambda)"""
     asyncio.set_event_loop(loop)
     loop.run_forever()
 

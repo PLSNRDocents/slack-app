@@ -57,17 +57,17 @@ def create_app():
     logging.getLogger("urllib3").setLevel(logging.INFO)
 
     mode = os.environ["PLSNRENV"]
-    logger.info("create_app: mode {}".format(mode))
+    logger.info(f"create_app: mode {mode}")
     app.config.from_object("settings." + mode + "Settings")
 
     for rc in REQUIRED_CONFIG:
         if rc not in os.environ:
-            raise EnvironmentError("Missing {}".format(rc))
+            raise OSError(f"Missing {rc}")
         app.config[rc] = os.environ.get(rc)
     # let environ overwrite settings
     for rc in app.config:
         if rc in os.environ and (os.environ[rc] != app.config[rc]):
-            logger.warning("Config variable {} overwritten by environment".format(rc))
+            logger.warning(f"Config variable {rc} overwritten by environment")
             app.config[rc] = os.environ[rc]
 
     logger.info("create_app: init db")

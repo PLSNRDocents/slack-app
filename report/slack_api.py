@@ -19,7 +19,7 @@ def _chk_error(rv, endpoint):
         jresponse = rv.json()
     except Exception:
         jresponse = None
-    logger.info("Slack POST to {} status {}".format(endpoint, rv.status_code))
+    logger.info(f"Slack POST to {endpoint} status {rv.status_code}")
     if rv.status_code != 200 or (jresponse and "error" in jresponse):
         reasons = "Unk"
         if jresponse and "response_metadata" in jresponse:
@@ -36,7 +36,7 @@ def post(endpoint, payload, auth=None):
     if not auth:
         auth = os.environ["BOT_TOKEN"]
     headers = {
-        "Authorization": "Bearer {}".format(auth),
+        "Authorization": f"Bearer {auth}",
         "Content-Type": "application/json;charset=utf-8",
         "Accept": "application/json",
     }
@@ -88,7 +88,7 @@ def post_ephemeral_message(channel, user, payload):
 
 
 def post_message(channel, payload):
-    """ PostMessage - 'channel' can be user ID. """
+    """PostMessage - 'channel' can be user ID."""
     if isinstance(payload, list):
         content = {"text": "Here ya go!", "blocks": payload}
     else:
@@ -104,9 +104,7 @@ def delete_message(channel, ts):
     try:
         post("chat.delete", payload, auth=os.environ["APP_TOKEN"])
     except SlackApiError as exc:
-        logger.warning(
-            "Delete message {} channel {} failed: {}".format(ts, channel, exc)
-        )
+        logger.warning(f"Delete message {ts} channel {channel} failed: {exc}")
 
 
 def get_all_users():
@@ -136,7 +134,7 @@ def get_bot_info():
     j = get("auth.test")
     global BOT_USER_ID
     BOT_USER_ID = j["user_id"]
-    logger.info("BOT USER ID {}".format(BOT_USER_ID))
+    logger.info(f"BOT USER ID {BOT_USER_ID}")
 
 
 def get_bot_user_id():

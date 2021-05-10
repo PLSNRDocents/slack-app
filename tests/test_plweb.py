@@ -22,9 +22,9 @@ def test_today():
 
 
 def test_today_bom():
-    """ Current website doesn't handle timezones and there end of month
+    """Current website doesn't handle timezones and there end of month
     well - so early on the First - it still shows last month first.
-    Also - this makes 'tomorrow' work across months. """
+    Also - this makes 'tomorrow' work across months."""
     plweb = Plweb(CONFIG)
     with open(os.path.join(os.path.dirname(__file__), "data/info-dec1.html")) as fp:
         page = fp.read()

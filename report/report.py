@@ -144,7 +144,9 @@ def open_disturbance_report_modal(trigger, state):
     )
     blocks.append(
         input_block(
-            "location", "Trail/Location", select_element("value", "Select one", places),
+            "location",
+            "Trail/Location",
+            select_element("value", "Select one", places),
         )
     )
     blocks.append(
@@ -194,7 +196,7 @@ def open_disturbance_report_modal(trigger, state):
         if "expired" in repr(ex):
             logger.warning("Received trigger expired - ignoring")
         else:
-            logger.error("views.open error - payload:{}".format(view))
+            logger.error(f"views.open error - payload:{view}")
             raise
 
 
@@ -220,7 +222,7 @@ def handle_report_submit_modal(rjson):
                 # Hmm - report ID already completed. This can happen when starting with
                 # 'new rep' which produces the 'trail' versus 'disturbance' buttons
                 # and those buttons are used more than once.
-                post_message(userid, "Report {} already completed?".format(nr.id))
+                post_message(userid, f"Report {nr.id} already completed?")
                 return {}
 
         values = rjson["view"]["state"]["values"]

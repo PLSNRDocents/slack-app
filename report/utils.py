@@ -45,7 +45,7 @@ def divider_block():
 
 
 def input_block(block_id, label, element, optional=False):
-    """ This is for modals. element can be plain-text, select """
+    """This is for modals. element can be plain-text, select"""
     b = {
         "type": "input",
         "block_id": str(block_id),
@@ -85,13 +85,13 @@ def select_element(action_id, place_text, options, initial_option=None):
 
 
 def atinfo_to_blocks(atinfo, lday: datetime.datetime):
-    """ Convert/format atinfo into nice presentation. """
+    """Convert/format atinfo into nice presentation."""
     blocks = []
     blocks.append(divider_block())
     blocks.append(text_block(lday.strftime("%a %b %d %Y")))
     for loc, what in atinfo.items():
         if what:
-            t = "*{}:*".format(loc)
+            t = f"*{loc}:*"
             for i in what:
                 t += "\n_{}_: {}".format(i["time"], ", ".join(i["who"]))
                 if "title" in i:
@@ -108,8 +108,7 @@ def at_cache_helper(which_day: datetime.datetime, where):
 
 
 def convert_gps(gps):
-    """ Parse iphone compass app GPS coordinates: '36°33′0″ N  121°55′28″ W'
-    """
+    """Parse iphone compass app GPS coordinates: '36°33′0″ N  121°55′28″ W'"""
     # 2 spaces between lat/lng
     try:
         lat, lng = gps.split("  ")
@@ -121,7 +120,7 @@ def convert_gps(gps):
 
 
 def _dms_to_dd(coords):
-    """ iphone uses some funky punctuation """
+    """iphone uses some funky punctuation"""
     coords = " ".join(coords.split())
     deg, minutes, seconds, direction = re.split(
         "[°'\"\N{PRIME}\N{DOUBLE PRIME}]", coords

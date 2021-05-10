@@ -36,7 +36,7 @@ def _setup():
     # grab config
     config = {}
     mode = os.environ["PLSNRENV"]
-    logger.info("task setup: mode {}".format(mode))
+    logger.info(f"task setup: mode {mode}")
 
     settings = getattr(importlib.import_module("settings"), mode + "Settings")
     for key in dir(settings):
@@ -46,7 +46,7 @@ def _setup():
     # let environ overwrite settings
     for rc in config:
         if rc in os.environ and (os.environ[rc] != config[rc]):
-            logger.warning("Config variable {} overwritten by environment".format(rc))
+            logger.warning(f"Config variable {rc} overwritten by environment")
             config[rc] = os.environ[rc]
     return config
 
@@ -96,7 +96,7 @@ def prime_cache():
         ddb_cache = dynamo.DDBCache(config, ddb)
         prime_cache_internal(config, ddb_cache)
     except Exception as exc:
-        logger.error("Task failed: {}".format(exc), exc_info=True)
+        logger.error(f"Task failed: {exc}", exc_info=True)
 
 
 def backup():
@@ -107,7 +107,7 @@ def backup():
     dt = datetime.datetime.now(tz.tzutc()).strftime("%Y%m%d%H%M%S")
     for table in dynamo.TN_LOOKUP.values():
         rv = ddb.client.create_backup(TableName=table, BackupName=table + dt)
-        logger.info("Backup response for table {}: {}".format(table, rv))
+        logger.info(f"Backup response for table {table}: {rv}")
 
 
 if __name__ == "__main__":
@@ -117,7 +117,12 @@ if __name__ == "__main__":
     prime_cache_internal(config, gddb_cache)
 
     today = datetime.datetime.now(tz.tzutc())
-    lday, ckey = utils.at_cache_helper(today, "all")
-    atinfo = gddb_cache.get(ckey)
-    blocks = utils.atinfo_to_blocks(atinfo, lday)
-    print(blocks)
+    which_days = [
+        today,
+        today + datetime.timedelta(days=1),
+    ]
+    for day in which_days:
+        lday, ckey = utils.at_cache_helper(day, "all")
+        atinfo = gddb_cache.get(ckey)
+        blocks = utils.atinfo_to_blocks(atinfo, lday)
+        print(blocks)

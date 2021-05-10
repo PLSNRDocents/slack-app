@@ -16,7 +16,7 @@ logger = logging.getLogger("home")
 
 
 def handle_home(event):
-    """ When user opens home tab we get this event """
+    """When user opens home tab we get this event"""
     app = asyncev.wapp
     with app.app_context():
         b = []

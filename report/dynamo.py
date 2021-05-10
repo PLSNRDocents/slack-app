@@ -86,7 +86,7 @@ class DDBCache:
         rv = table.query(KeyConditionExpression=Key("ckey").eq(ckey))
         if len(rv["Items"]) != 1:
             if len(rv["Items"]) > 1:
-                self._logger.error("Received multiple results for ckey {}".format(ckey))
+                self._logger.error(f"Received multiple results for ckey {ckey}")
             return None
         return json.loads(rv["Items"][0]["cvalue"])
 
@@ -105,6 +105,6 @@ class DDBCache:
         table.put_item(Item=item)
 
     def delete(self, ckey):
-        self._logger.info("Deleting ckey {} from cache".format(ckey))
+        self._logger.info(f"Deleting ckey {ckey} from cache")
         table = self._conn.Table(TN_LOOKUP["cache"])
         table.delete_item(Key={"ckey": ckey})
