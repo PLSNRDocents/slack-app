@@ -1,10 +1,10 @@
-# Copyright 2020 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2020-2021 by J. Christopher Wagner (jwag). All rights reserved.
 
 """
 This is the interface from slack to/from backend of drupal.
 """
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, field
 from datetime import datetime
 from dateutil import tz
 import logging
@@ -24,8 +24,8 @@ class ReportModel:
     create_datetime: datetime
     type: str  # Trail or Disturbance
     location: str = "Unk"  # e.g. trail name
-    wildlife_issues: str = None  # e.g. otters - comma separated
-    other_issues: str = None  # e.g. otters - comma separated
+    wildlife_issues: list = field(default_factory=list)
+    other_issues: list = field(default_factory=list)
 
     # Full name from website
     reporter: str = None
@@ -109,7 +109,7 @@ class Report:
             matches.extend([i["name"] for i in tax_id_list if i["id"] == r])
         if not matches:
             return "Unk"
-        return ",".join(matches)
+        return ", ".join(matches)
 
     def fetch(self):
         # Get recent reports.
@@ -137,17 +137,17 @@ class Report:
     def get_wildlife_issue_list(self):
         # Return a list of tuple (<display_name>, <id>) of possible wildlife issues
         wissues = self._site.get_taxonomy("wildlife_disturbance")
-        return sorted([(d["name"], d["id"]) for d in wissues])
+        return sorted((d["name"], d["id"]) for d in wissues)
 
     def get_other_issue_list(self):
         # Return a list of tuple (<display_name>, <id>) of possible other issues
         oissues = self._site.get_taxonomy("other_disturbance")
-        return sorted([(d["name"], d["id"]) for d in oissues])
+        return sorted((d["name"], d["id"]) for d in oissues)
 
     def get_places_list(self):
         # Return a list of tuple (<display_name>, <id>)
         places = self._site.get_taxonomy("places")
-        return sorted([(d["name"], d["id"]) for d in places])
+        return sorted((d["name"], d["id"]) for d in places)
 
     def slack2plsnr(self, slack_user_id):
         # Attempt to map the slack_id to a registered plsnr web site user

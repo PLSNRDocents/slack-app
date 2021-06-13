@@ -1,4 +1,4 @@
-# Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2021 by J. Christopher Wagner (jwag). All rights reserved.
 
 from dateutil import tz
 import datetime
@@ -72,6 +72,24 @@ def select_element(action_id, place_text, options, initial_option=None):
         ops.append({"text": {"type": "plain_text", "text": o[0]}, "value": o[1]})
     e = {
         "type": "static_select",
+        "action_id": action_id,
+        "placeholder": {"type": "plain_text", "text": place_text},
+        "options": ops,
+    }
+    if initial_option:
+        e["initial_option"] = {
+            "text": {"type": "plain_text", "text": initial_option[0]},
+            "value": initial_option[1],
+        }
+    return e
+
+
+def multi_select_element(action_id, place_text, options, initial_option=None):
+    ops = []
+    for o in options:
+        ops.append({"text": {"type": "plain_text", "text": o[0]}, "value": o[1]})
+    e = {
+        "type": "multi_static_select",
         "action_id": action_id,
         "placeholder": {"type": "plain_text", "text": place_text},
         "options": ops,

@@ -16,7 +16,7 @@ from constants import (
 )
 import exc
 from slack_api import post, post_message, user_to_name
-from utils import input_block, pt_input_element, select_element
+from utils import input_block, pt_input_element, select_element, multi_select_element
 
 
 logger = logging.getLogger("report")
@@ -26,8 +26,11 @@ def _parse_values(field, values):
     if field in values:
         rv = values[field]["value"]
         if rv["type"] == "static_select":
-            if "selected_option" in rv:
+            if "selected_option" in rv and rv["selected_option"]:
                 return rv["selected_option"]["value"]
+        elif rv["type"] == "multi_static_select":
+            if "selected_options" in rv and rv["selected_options"]:
+                return [t["value"] for t in rv["selected_options"]]
         elif "value" in rv:
             return rv["value"]
     return None
@@ -130,7 +133,7 @@ def open_disturbance_report_modal(trigger, state):
         input_block(
             "wildlife_issues",
             "Wildlife Disturbance",
-            select_element("value", "Select one", wildlife_issues),
+            multi_select_element("value", "Select one or more", wildlife_issues),
             optional=True,
         )
     )
@@ -138,7 +141,7 @@ def open_disturbance_report_modal(trigger, state):
         input_block(
             "other_issues",
             "Other Disturbance",
-            select_element("value", "Select one", other_issues),
+            multi_select_element("value", "Select one or more", other_issues),
             optional=True,
         )
     )
@@ -229,13 +232,9 @@ def handle_report_submit_modal(rjson):
         dinfo = {}
         for field in app.report.user_field_list():
             # desktop app always returns something - iphone app doesn't.
-            if field in values:
-                rv = values[field]["value"]
-                if rv["type"] == "static_select":
-                    if "selected_option" in rv:
-                        dinfo[field] = rv["selected_option"]["value"]
-                elif "value" in rv:
-                    dinfo[field] = rv["value"]
+            value = _parse_values(field, values)
+            if value:
+                dinfo[field] = value
         if state["rid"] != "0":
             nr = app.report.complete(
                 nr, rjson["view"]["callback_id"], rjson["user"], None, dinfo

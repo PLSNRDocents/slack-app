@@ -140,13 +140,15 @@ class DrupalApi:
             if "field_wildlife_disturbance" in rels and rels[
                 "field_wildlife_disturbance"
             ].get("data", None):
-                ids = [f["id"] for f in rels["field_wildlife_disturbance"]["data"]]
-                r["wildlife_issues"] = ",".join(ids)
+                r["wildlife_issues"] = [
+                    f["id"] for f in rels["field_wildlife_disturbance"]["data"]
+                ]
             if "field_other_disturbance" in rels and rels[
                 "field_other_disturbance"
             ].get("data", None):
-                ids = [f["id"] for f in rels["field_other_disturbance"]["data"]]
-                r["other_issues"] = ",".join(ids)
+                r["other_issues"] = [
+                    f["id"] for f in rels["field_other_disturbance"]["data"]
+                ]
             reports.append(r)
         return reports
 

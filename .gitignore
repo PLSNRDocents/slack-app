@@ -3,5 +3,7 @@
 __pycache__/
 
 py3.7env/
+py3.8env/
+py3.9env/
 
 .DS_Store
