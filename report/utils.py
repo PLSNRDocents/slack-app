@@ -107,13 +107,15 @@ def atinfo_to_blocks(atinfo, lday: datetime.datetime):
     blocks = []
     blocks.append(divider_block())
     blocks.append(text_block(lday.strftime("%a %b %d %Y")))
-    for loc, what in atinfo.items():
-        if what:
-            t = f"*{loc}:*"
-            for i in what:
+    for atype, info in atinfo.items():
+        if info:
+            t = f"*{atype}:*"
+            for i in info:
                 t += "\n_{}_: {}".format(i["time"], ", ".join(i["who"]))
                 if "title" in i:
                     t += " - {}".format(i["title"])
+                if i.get("where", "unk") != "unk":
+                    t += f" at {i['where']}"
             blocks.append(text_block(t))
     return blocks
 

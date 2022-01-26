@@ -1,4 +1,4 @@
-# Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2022 by J. Christopher Wagner (jwag). All rights reserved.
 
 from dateutil import tz
 import datetime
@@ -6,7 +6,6 @@ import logging
 import json
 
 from flask import Blueprint, abort, current_app, jsonify, request
-import slack
 
 import asyncev
 from asyncev import run_async
@@ -30,11 +29,8 @@ logger = logging.getLogger("api")
 @api.route("/report", methods=["GET", "POST"])
 def top():
     # This handles the /report command
-    if not slack.WebClient.validate_slack_signature(
-        signing_secret=current_app.config["SIGNING_SECRET"],
-        data=request.get_data().decode("utf-8"),
-        timestamp=request.headers["X-Slack-Request-Timestamp"],
-        signature=request.headers["X-Slack-Signature"],
+    if not current_app.slack_verifier.is_valid_request(
+        request.get_data().decode("utf-8"), request.headers
     ):
         abort(403)
 
@@ -49,11 +45,8 @@ def top():
 @api.route("/interact", methods=["GET", "POST"])
 def submit():
     """Called from slack for all interactions (dialogs, button, etc)."""
-    if not slack.WebClient.validate_slack_signature(
-        signing_secret=current_app.config["SIGNING_SECRET"],
-        data=request.get_data().decode("utf-8"),
-        timestamp=request.headers["X-Slack-Request-Timestamp"],
-        signature=request.headers["X-Slack-Signature"],
+    if not current_app.slack_verifier.is_valid_request(
+        request.get_data().decode("utf-8"), request.headers
     ):
         abort(403)
 
@@ -103,11 +96,8 @@ def submit():
 
 @api.route("/events", methods=["GET", "POST"])
 def events():
-    if not slack.WebClient.validate_slack_signature(
-        signing_secret=current_app.config["SIGNING_SECRET"],
-        data=request.get_data().decode("utf-8"),
-        timestamp=request.headers["X-Slack-Request-Timestamp"],
-        signature=request.headers["X-Slack-Signature"],
+    if not current_app.slack_verifier.is_valid_request(
+        request.get_data().decode("utf-8"), request.headers
     ):
         abort(403)
 

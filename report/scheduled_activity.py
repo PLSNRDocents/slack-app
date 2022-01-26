@@ -1,4 +1,4 @@
-# Copyright 2021 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2021-2022 by J. Christopher Wagner (jwag). All rights reserved.
 
 import logging
 import re
@@ -15,6 +15,19 @@ class ScheduledActivity:
         self._config = config
         self._logger = logging.getLogger(__name__)
         self._site = site
+
+    @staticmethod
+    def get_custom_fields(atype, sa_attributes):
+        custom1 = custom2 = None
+        options = atype["custom_fields"][0]["options"] or []
+        for option in options:
+            if option["key"] == sa_attributes["custom1"]:
+                custom1 = option["name"]
+        options = atype["custom_fields"][1]["options"] or []
+        for option in options:
+            if option["key"] == sa_attributes["custom2"]:
+                custom2 = option["name"]
+        return custom1, custom2
 
     def whoat(self, when, which):
         """
@@ -92,7 +105,10 @@ class ScheduledActivity:
                 )
                 if title not in atinfo:
                     atinfo[title] = []
-                atinfo[title].append(dict(who=who, time=when))
+                where = self.find_where(
+                    r, views, types.get(r["attributes"]["activity_type"], None)
+                )
+                atinfo[title].append(dict(who=who, time=when, where=where))
         if not atinfo:
             atinfo["Oh no!"] = [dict(who=["No one"], time="all day")]
         return atinfo
@@ -122,22 +138,40 @@ class ScheduledActivity:
                     return what_value
         return what_value
 
-    def find_where_value(self, field_name, field_value, atype):
+    def find_where(self, sa, views, atype):
+        # look at activity view to figure out what field is 'what'
+        # Simplification - assume different views don't have same activity type
+        # with different 'what' fields.
+        where_value = "unk"
+        field_name = None
+        for view in views.values():
+            sa_atype = sa["attributes"]["activity_type"]
+            if sa_atype in view["activity_types"]:
+                where = view["activity_types"][sa_atype].get("where", None)
+                if where:
+                    if where["week_entry"]["enabled"]:
+                        field_name = where["week_entry"]["sa_field_name"]
+                    elif where["month_entry"]["enabled"]:
+                        field_name = where["month_entry"]["sa_field_name"]
+
+                    if field_name:
+                        where_value = self.find_where_value(
+                            field_name,
+                            sa["attributes"],
+                            atype,
+                        )
+                        return where_value
+        return where_value
+
+    def find_where_value(self, field_name, sa_attributes, atype):
         # self._logger.info(f"find where value {field_name} {field_value} {atype}")
         if not atype:
             return "unk"
-        if field_name == "title":
-            return field_value
-        elif field_name == "custom1":
-            options = atype["custom_fields"][0]["options"]
-            for option in options:
-                if option["key"] == field_value:
-                    return option["name"]
-        elif field_name == "custom2":
-            options = atype["custom_fields"][1]["options"]
-            for option in options:
-                if option["key"] == field_value:
-                    return option["name"]
+        custom1, custom2 = ScheduledActivity.get_custom_fields(atype, sa_attributes)
+        if field_name == "custom1" and custom1:
+            return custom1
+        if field_name == "custom2" and custom2:
+            return custom2
         return "unk"
 
     def find_what_value(self, markup, sa_attributes, atype):
@@ -149,15 +183,7 @@ class ScheduledActivity:
         fmarkup = re.sub(r"@([a-zA-Z_0-9]+)", r"{\1}", markup)
         title = sa_attributes["title"]
         activity_type = atype["name"]
-        custom1 = custom2 = None
-        options = atype["custom_fields"][0]["options"] or []
-        for option in options:
-            if option["key"] == sa_attributes["custom1"]:
-                custom1 = option["name"]
-        options = atype["custom_fields"][1]["options"] or []
-        for option in options:
-            if option["key"] == sa_attributes["custom1"]:
-                custom2 = option["name"]
+        custom1, custom2 = ScheduledActivity.get_custom_fields(atype, sa_attributes)
         return fmarkup.format(
             title=title, activity_type=activity_type, custom1=custom1, custom2=custom2
         )

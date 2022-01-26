@@ -1,4 +1,4 @@
-# Copyright 2019-2020 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2022 by J. Christopher Wagner (jwag). All rights reserved.
 
 """
 A Flask app that receives slack app calls and reacts.
@@ -29,6 +29,7 @@ import os
 
 from flask import Flask
 from flask_moment import Moment
+from slack.signature import SignatureVerifier
 
 from api import api
 import asyncev
@@ -88,6 +89,7 @@ def create_app():
 
     app.plweb = plweb.Plweb(app.config)
     app.moment = Moment(app)
+    app.slack_verifier = SignatureVerifier(app.config["SIGNING_SECRET"])
 
     @app.before_first_request
     def start_async():
