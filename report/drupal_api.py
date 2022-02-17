@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 class DrupalApi:
     def __init__(self, username, password, server_url, ssl_verify):
+        if not username or not password:
+            raise ValueError("username and/or password not specified")
         self.username = username
         self.password = password
         self.server_url = server_url

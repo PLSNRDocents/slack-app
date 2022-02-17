@@ -90,16 +90,23 @@ class DDBCache:
             return None
         return json.loads(rv["Items"][0]["cvalue"])
 
-    def put(self, ckey, cvalue):
+    def put(self, ckey, cvalue, only_if_changed=True):
         table = self._conn.Table(TN_LOOKUP["cache"])
+        new_value = json.dumps(cvalue)
+        if only_if_changed:
+            rv = table.query(KeyConditionExpression=Key("ckey").eq(ckey))
+            if len(rv["Items"]) == 1 and (rv["Items"][0]["cvalue"] == new_value):
+                self._logger.info(f"Cache key {ckey} value unchanged")
+                return
+
         item = {
             "ckey": ckey,
-            "cvalue": json.dumps(cvalue),
+            "cvalue": new_value,
             "update_datetime": datetime.now(tz.tzutc()).isoformat(),
         }
         self._logger.info(
-            "Setting cache key {} to table {} length {}".format(
-                ckey, TN_LOOKUP["cache"], len(cvalue)
+            "Setting cache key {} to table {} value {}".format(
+                ckey, TN_LOOKUP["cache"], new_value
             )
         )
         table.put_item(Item=item)

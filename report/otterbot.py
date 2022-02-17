@@ -217,8 +217,7 @@ def talk_to_me(event_id, event):
                             )
                         ],
                     )
-                    atinfo = app.plweb.whoat(lday.strftime("%Y%m%d"), where)
-                    atinfo.update(app.sa.whoat(lday.strftime("%Y%m%d"), where))
+                    atinfo = app.sa.whoat(lday.strftime("%Y%m%d"), where)
                     app.ddb_cache.put(ckey, atinfo)
                 blocks = utils.atinfo_to_blocks(atinfo, lday)
 

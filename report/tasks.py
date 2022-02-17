@@ -7,8 +7,9 @@ Locally - python -c "import tasks; tasks.xxx"
 
 """
 
+import argparse
 import datetime
-from dateutil import tz
+from dateutil import parser, tz
 import importlib
 import logging
 import os
@@ -22,7 +23,6 @@ from constants import (
 )
 from drupal_api import DrupalApi
 import dynamo
-import plweb
 import report_drupal
 from scheduled_activity import ScheduledActivity
 import utils
@@ -51,28 +51,20 @@ def _setup():
     return config
 
 
-def prime_cache_internal(config, ddb_cache):
+def prime_cache_internal(config, ddb_cache, which_days):
     site = DrupalApi(
         config["PLSNR_USERNAME"],
         config["PLSNR_PASSWORD"],
         "{}/plsnr1933api".format(config["PLSNR_HOST"]),
         config["SSL_VERIFY"],
     )
-    plwebsite = plweb.Plweb(config)
     report = report_drupal.Report(config, site)
     sa = ScheduledActivity(config, site)
-
-    today = datetime.datetime.now(tz.tzutc())
-    which_days = [
-        today,
-        today + datetime.timedelta(days=1),
-    ]
 
     where = "all"
     for day in which_days:
         lday, ckey = utils.at_cache_helper(day, where)
-        atinfo = plwebsite.whoat(lday.strftime("%Y%m%d"), where)
-        atinfo.update(sa.whoat(lday.strftime("%Y%m%d"), where))
+        atinfo = sa.whoat(lday.strftime("%Y%m%d"), where)
         ddb_cache.put(ckey, atinfo)
 
     logger.info("prime_cache: reports")
@@ -94,7 +86,12 @@ def prime_cache():
     try:
         ddb = dynamo.DDB(config)
         ddb_cache = dynamo.DDBCache(config, ddb)
-        prime_cache_internal(config, ddb_cache)
+        today = datetime.datetime.now(tz.tzutc())
+        which_days = [
+            today,
+            today + datetime.timedelta(days=1),
+        ]
+        prime_cache_internal(config, ddb_cache, which_days)
     except Exception as exc:
         logger.error(f"Task failed: {exc}", exc_info=True)
 
@@ -110,17 +107,29 @@ def backup():
         logger.info(f"Backup response for table {table}: {rv}")
 
 
+def parseargs():
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("--date", help="example: 01/23/2019.")
+    return arg_parser.parse_args()
+
+
 if __name__ == "__main__":
+    _args = parseargs()
     config = _setup()
     gddb = dynamo.DDB(config)
     gddb_cache = dynamo.DDBCache(config, gddb)
-    prime_cache_internal(config, gddb_cache)
 
-    today = datetime.datetime.now(tz.tzutc())
+    if _args.date:
+        fday = parser.parse(_args.date)
+    else:
+        fday = datetime.datetime.now(tz.tzutc())
+
     which_days = [
-        today,
-        today + datetime.timedelta(days=1),
+        fday,
+        fday + datetime.timedelta(days=1),
     ]
+    prime_cache_internal(config, gddb_cache, which_days)
+
     for day in which_days:
         lday, ckey = utils.at_cache_helper(day, "all")
         atinfo = gddb_cache.get(ckey)

@@ -36,7 +36,6 @@ import asyncev
 from constants import LOG_FORMAT, DATE_FMT
 from drupal_api import DrupalApi
 from dynamo import DDB, DDBCache
-import plweb
 from report_drupal import Report as DrupalReport
 from scheduled_activity import ScheduledActivity
 from slack_api import get_bot_info
@@ -87,7 +86,6 @@ def create_app():
     app.sa = ScheduledActivity(app.config, site)
     app.register_blueprint(api)
 
-    app.plweb = plweb.Plweb(app.config)
     app.moment = Moment(app)
     app.slack_verifier = SignatureVerifier(app.config["SIGNING_SECRET"])
 
