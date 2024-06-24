@@ -1,4 +1,4 @@
-# Copyright 2019-2022 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2023 by J. Christopher Wagner (jwag). All rights reserved.
 
 
 class Settings:
@@ -10,11 +10,6 @@ class Settings:
 
     SSL_VERIFY = True
 
-    # For 'at' - which calendars etc should we scrape.
-    # WHICH_SCRAPE = ["info", "whalers", "public", "gate", "other"]
-    # With new flexsched - we no longer do any scrapping!
-    WHICH_SCRAPE = []
-
 
 class DevSettings(Settings):
     EV_MODE = "ev"
@@ -25,7 +20,7 @@ class DevSettings(Settings):
     DYNAMO_LOCAL_HOST = "localhost"
     DYNAMO_LOCAL_PORT = 8000
 
-    PLSNR_HOST = "http://platform-devd9:8888/"
+    PLSNR_HOST = "http://plsnrd10:12001"  # local indigo
 
     SSL_VERIFY = False
 
@@ -35,7 +30,7 @@ class AWSDevSettings(Settings):
 
     DYNAMO_TABLE_SUFFIX = "-test"
 
-    PLSNR_HOST = "https://devd9-x4hjj4a-mhab7wjgx42wa.us-3.platformsh.site/"
+    PLSNR_HOST = "https://devd10-2g4wgvy-mhab7wjgx42wa.us-3.platformsh.site"
 
 
 class AWSProdSettings(Settings):

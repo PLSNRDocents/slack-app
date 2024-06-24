@@ -1,7 +1,7 @@
-# Copyright 2019-2020 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2024 by J. Christopher Wagner (jwag). All rights reserved.
 
 """
-Scheduled tasks invoke via zappa
+Scheduled tasks invoked via zappa
 
 Locally - python -c "import tasks; tasks.xxx"
 
@@ -117,6 +117,7 @@ if __name__ == "__main__":
     _args = parseargs()
     config = _setup()
     gddb = dynamo.DDB(config)
+    gddb.create_all()
     gddb_cache = dynamo.DDBCache(config, gddb)
 
     if _args.date:

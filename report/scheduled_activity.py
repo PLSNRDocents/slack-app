@@ -50,7 +50,7 @@ class ScheduledActivity:
 
         rawdt = date_parser.parse(when)
         dt = rawdt.replace(tzinfo=tz.gettz("America/Los Angeles")).astimezone(tz.UTC)
-        self._logger.info(f"whoat which: {which} when: {dt.isoformat()}")
+        self._logger.info(f"APP: whoat: which: {which} when: {dt.isoformat()}")
 
         filters = {
             "filter[from][condition][path]": "start_time",
@@ -67,7 +67,7 @@ class ScheduledActivity:
         filters.update({"filter[cancelled]": 0})
         filters.update({"sort": "start_time"})
 
-        self._logger.info(f"params: {filters}")
+        self._logger.debug(f"APP: whoat: fetch from site: params: {filters}")
 
         results = self._site.simple_get(
             "/scheduled_activity/scheduled_activity", params=filters
@@ -111,6 +111,9 @@ class ScheduledActivity:
                 atinfo[title].append(dict(who=who, time=when, where=where))
         if not atinfo:
             atinfo["Oh no!"] = [dict(who=["No one"], time="all day")]
+        self._logger.debug(f"APP: whoat: atinfo:{atinfo}")
+        entries_per_title = {t: len(v) for t, v in atinfo.items()}
+        self._logger.info(f"APP: whoat: atinfo counts:{entries_per_title}")
         return atinfo
 
     def find_what(self, sa, views, atype):

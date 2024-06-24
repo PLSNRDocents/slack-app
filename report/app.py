@@ -1,4 +1,4 @@
-# Copyright 2019-2022 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2024 by J. Christopher Wagner (jwag). All rights reserved.
 
 """
 A Flask app that receives slack app calls and reacts.
@@ -52,9 +52,9 @@ def create_app():
 
     logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FMT, level=logging.INFO)
     logger = logging.getLogger(__name__)
-    logging.getLogger("botocore").setLevel(logging.INFO)
-    logging.getLogger("boto3").setLevel(logging.INFO)
-    logging.getLogger("urllib3").setLevel(logging.INFO)
+    logging.getLogger("botocore").setLevel(logging.WARNING)
+    logging.getLogger("boto3").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
 
     mode = os.environ["PLSNRENV"]
     logger.info(f"create_app: mode {mode}")

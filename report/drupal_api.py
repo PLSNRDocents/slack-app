@@ -163,7 +163,6 @@ class DrupalApi:
         reporter_id,
         location_tax_id,
     ):
-
         if wildlife_tax_ids and not isinstance(wildlife_tax_ids, list):
             wildlife_tax_ids = [wildlife_tax_ids]
         if other_tax_ids and not isinstance(other_tax_ids, list):

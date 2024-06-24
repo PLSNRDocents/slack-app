@@ -1,4 +1,4 @@
-# Copyright 2019-2020 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2024 by J. Christopher Wagner (jwag). All rights reserved.
 
 """
 Use dynamoDB for our at cache.
@@ -59,13 +59,15 @@ class DDB:
         tables_name_list = [table.name for table in self.conn.tables.all()]
         for table in TABLES:
             if table["TableName"] not in tables_name_list:
-                self._logger.info("Creating table {}".format(table["TableName"]))
+                self._logger.info(
+                    f" APP: create_all: Creating table {table['TableName']}"
+                )
                 self.conn.create_table(**table)
 
     def destroy_all(self):
         for t in TABLES:
             table = self.conn.Table(t["TableName"])
-            self._logger.info("Deleting table {}".format(t["TableName"]))
+            self._logger.info(f"APP: destroy_all: Deleting table {t['TableName']}")
             table.delete()
 
 
@@ -86,7 +88,9 @@ class DDBCache:
         rv = table.query(KeyConditionExpression=Key("ckey").eq(ckey))
         if len(rv["Items"]) != 1:
             if len(rv["Items"]) > 1:
-                self._logger.error(f"Received multiple results for ckey {ckey}")
+                self._logger.error(
+                    f"APP: get: Received multiple results for ckey {ckey}"
+                )
             return None
         return json.loads(rv["Items"][0]["cvalue"])
 
@@ -96,7 +100,7 @@ class DDBCache:
         if only_if_changed:
             rv = table.query(KeyConditionExpression=Key("ckey").eq(ckey))
             if len(rv["Items"]) == 1 and (rv["Items"][0]["cvalue"] == new_value):
-                self._logger.info(f"Cache key {ckey} value unchanged")
+                self._logger.info(f"APP: put: Cache key {ckey} value unchanged")
                 return
 
         item = {
@@ -104,14 +108,17 @@ class DDBCache:
             "cvalue": new_value,
             "update_datetime": datetime.now(tz.tzutc()).isoformat(),
         }
-        self._logger.info(
-            "Setting cache key {} to table {} value {}".format(
+        self._logger.debug(
+            "APP: put: Setting cache key {} to table {} value {}".format(
                 ckey, TN_LOOKUP["cache"], new_value
             )
         )
+        entries_per_title = {t: len(v) for t, v in cvalue.items()}
+        self._logger.info(f"APP: put: atinfo counts:{entries_per_title}")
+
         table.put_item(Item=item)
 
     def delete(self, ckey):
-        self._logger.info(f"Deleting ckey {ckey} from cache")
+        self._logger.info(f"APP: delete: Deleting ckey {ckey} from cache")
         table = self._conn.Table(TN_LOOKUP["cache"])
         table.delete_item(Key={"ckey": ckey})
