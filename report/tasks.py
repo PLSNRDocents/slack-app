@@ -67,7 +67,6 @@ def prime_cache_internal(config, ddb_cache, which_days):
         atinfo = sa.whoat(lday.strftime("%Y%m%d"), where)
         ddb_cache.put(ckey, atinfo)
 
-    logger.info("prime_cache: reports")
     ddb_cache.put(CKEY_PLACES, report.get_places_list())
     ddb_cache.put(CKEY_WILDLIFE_ISSUES, report.get_wildlife_issue_list())
     ddb_cache.put(CKEY_OTHER_ISSUES, report.get_other_issue_list())

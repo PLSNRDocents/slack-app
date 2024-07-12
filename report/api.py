@@ -186,11 +186,7 @@ def handle_at(when, rjson):
             which_day = today + datetime.timedelta(days=1)
 
         lday, ckey = utils.at_cache_helper(which_day, where)
-        logger.info(
-            "Looking for at info for Pacific TZ: {} Key: {}".format(
-                lday.isoformat(), ckey
-            )
-        )
+        logger.info(f"APP: handle_at Pacific TZ: {lday.isoformat()} Key: {ckey}")
         atinfo = app.ddb_cache.get(ckey)
         if not atinfo:
             logger.warning(f"No atinfo for ckey: {ckey}")
@@ -202,6 +198,42 @@ def handle_at(when, rjson):
             }
         else:
             blocks = utils.atinfo_to_blocks(atinfo, lday)
+            logger.debug(f"APP:blocks: {blocks}")
+            # Example of something that doesn't display correctly on iphone
+            bblocks = [  # noqa: F841
+                {"type": "divider"},
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": "Thu Jul 11 2024"},
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "*Info Station:*\n_9:00AM-11:00AM_: L Turrini-Smith\n"
+                        "_11:00AM-1:00PM_: S DuCoeur\n"
+                        "_1:00PM-3:00PM_: V Cormack\n_3:00PM-5:00PM_: E Lichy",
+                    },
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "*Whaling Station:*\n_9:00AM-11:00AM_: J Alexander\n"
+                        "_11:00AM-1:00PM_: E Fukunaga\n"
+                        "_1:00PM-3:00PM_: C Schaefer\n_3:00PM-5:00PM_: E Young",
+                    },
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "*The Women Who Shaped and Saved Point"
+                        " Lobos Public Walk:*\n_10:30AM_: M Alancraig"
+                        " at Whalers Cabin",
+                    },
+                },
+            ]
             view = {
                 "type": "modal",
                 "title": {"type": "plain_text", "text": "Who's at the Reserve"},
@@ -212,7 +244,7 @@ def handle_at(when, rjson):
         try:
             post("views.open", dict(trigger_id=rjson["trigger_id"], view=view))
         except exc.SlackApiError as ex:
-            if "trigger_expired" in repr(ex):
+            if "expired_trigger_id" in repr(ex):
                 logger.warning("Received trigger expired - ignoring")
             else:
                 raise

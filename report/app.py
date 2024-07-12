@@ -56,6 +56,9 @@ def create_app():
     logging.getLogger("boto3").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
 
+    rlogger = logging.getLogger()
+    rlogger.setLevel(logging.INFO)
+
     mode = os.environ["PLSNRENV"]
     logger.info(f"create_app: mode {mode}")
     app.config.from_object("settings." + mode + "Settings")
@@ -88,20 +91,6 @@ def create_app():
 
     app.moment = Moment(app)
     app.slack_verifier = SignatureVerifier(app.config["SIGNING_SECRET"])
-
-    @app.before_first_request
-    def start_async():
-        threading.Thread(target=lambda: asyncev.run_loop(asyncev.event_loop)).start()
-
-    @app.before_first_request
-    def init_tables():
-        # app.ddb.destroy_all()
-        app.ddb.create_all()
-
-    @app.before_first_request
-    def whoami():
-        get_bot_info()
-
     return app
 
 
@@ -109,5 +98,10 @@ if __name__ == "__main__":
     # reloader doesn't work with additional threads.
     app = create_app()
     asyncev.wapp = app
+    # app.ddb.destroy_all()
+    app.ddb.create_all()
+    get_bot_info()
+
     app.run(host="localhost", port=6002, debug=True, use_reloader=False)
     asyncev.event_loop.call_soon_threadsafe(asyncev.event_loop.stop)
+    threading.Thread(target=lambda: asyncev.run_loop(asyncev.event_loop)).start()

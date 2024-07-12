@@ -103,7 +103,27 @@ def multi_select_element(action_id, place_text, options, initial_option=None):
 
 
 def atinfo_to_blocks(atinfo, lday: datetime.datetime):
-    """Convert/format atinfo into nice presentation."""
+    """Convert/format atinfo into nice presentation.
+    N.B. iphone sometimes doesn't print everything? usually the last
+    line of a sesion.
+    This:
+    [
+        {'type': 'divider'},
+        {'type': 'section', 'text': {'type': 'mrkdwn', 'text': 'Thu Jul 11 2024'}},
+        {'type': 'section', 'text': {'type': 'mrkdwn', 'text': '*Info Station:*\n
+            _9:00AM-11:00AM_: L Turrini-Smith\n_11:00AM-1:00PM_: S DuCoeur\n
+            _1:00PM-3:00PM_: V Cormack\n_3:00PM-5:00PM_: E Lichy'}},
+        {'type': 'section', 'text': {'type': 'mrkdwn', 'text': '*Whaling Station:*\n
+            _9:00AM-11:00AM_: J Alexander\n_11:00AM-1:00PM_: E Fukunaga\n
+            _1:00PM-3:00PM_: C Schaefer\n_3:00PM-5:00PM_: E Young'}},
+        {'type': 'section', 'text': {'type': 'mrkdwn', 'text': '*The Women Who Shaped
+            and Saved Point Lobos Public Walk:*\n_10:30AM_: M Alancraig
+             at Whalers Cabin'}}
+    ]
+    Doesn't print the last Whalers shift.
+    Testing shows if we remove the italics around time (which didn't work precisely)
+    things work... more testing needed.
+    """
     blocks = []
     blocks.append(divider_block())
     blocks.append(text_block(lday.strftime("%a %b %d %Y")))
@@ -111,7 +131,8 @@ def atinfo_to_blocks(atinfo, lday: datetime.datetime):
         if info:
             t = f"*{atype}:*"
             for i in info:
-                t += "\n_{}_: {}".format(i["time"], ", ".join(i["who"]))
+                # t += "\n_{}_: {}".format(i["time"], ", ".join(i["who"]))
+                t += "\n{}: {}".format(i["time"], ", ".join(i["who"]))
                 if "title" in i:
                     t += " - {}".format(i["title"])
                 if i.get("where", "unk") != "unk":

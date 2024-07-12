@@ -10,7 +10,6 @@ import logging
 import json
 
 import boto3
-from boto3.dynamodb.conditions import Key
 
 TN_LOOKUP = {"cache": "cache"}
 
@@ -43,9 +42,7 @@ class DDB:
                 config["DYNAMO_LOCAL_HOST"], config["DYNAMO_LOCAL_PORT"]
             )
 
-        self.conn = self.session.resource("dynamodb", **client_kwargs)
-        if need_client:
-            self.client = self.session.client("dynamodb", **client_kwargs)
+        self.client = self.session.client("dynamodb", **client_kwargs)
         tsuffix = config.get("DYNAMO_TABLE_SUFFIX", None)
         if tsuffix:
             for table in TABLES:
@@ -56,19 +53,18 @@ class DDB:
                     TN_LOOKUP[n] = tn + tsuffix
 
     def create_all(self):
-        tables_name_list = [table.name for table in self.conn.tables.all()]
+        tables_name_list = self.client.list_tables()["TableNames"]
         for table in TABLES:
             if table["TableName"] not in tables_name_list:
                 self._logger.info(
                     f" APP: create_all: Creating table {table['TableName']}"
                 )
-                self.conn.create_table(**table)
+                self.client.create_table(**table)
 
     def destroy_all(self):
         for t in TABLES:
-            table = self.conn.Table(t["TableName"])
             self._logger.info(f"APP: destroy_all: Deleting table {t['TableName']}")
-            table.delete()
+            self.client.delete_table(t["TableName"])
 
 
 class DDBCache:
@@ -81,44 +77,58 @@ class DDBCache:
     def __init__(self, config, ddb: DDB):
         self._config = config
         self._logger = logging.getLogger(__name__)
-        self._conn = ddb.conn
+        self._client = ddb.client
 
     def get(self, ckey):
-        table = self._conn.Table(TN_LOOKUP["cache"])
-        rv = table.query(KeyConditionExpression=Key("ckey").eq(ckey))
+        cn = TN_LOOKUP["cache"]
+        rv = self._client.query(
+            TableName=cn,
+            KeyConditionExpression="ckey = :ckey",
+            ExpressionAttributeValues={":ckey": {"S": ckey}},
+        )
         if len(rv["Items"]) != 1:
             if len(rv["Items"]) > 1:
                 self._logger.error(
                     f"APP: get: Received multiple results for ckey {ckey}"
                 )
             return None
-        return json.loads(rv["Items"][0]["cvalue"])
+        cvalue = json.loads(rv["Items"][0]["cvalue"]["S"])
+        self._logger.debug(f"APP: get: {cvalue.items()}")
+        if isinstance(cvalue, dict):
+            entries_per_title = {t: len(v) for t, v in cvalue.items()}
+            self._logger.info(f"APP: get: atinfo counts:{entries_per_title}")
+        return cvalue
 
     def put(self, ckey, cvalue, only_if_changed=True):
-        table = self._conn.Table(TN_LOOKUP["cache"])
+        cn = TN_LOOKUP["cache"]
         new_value = json.dumps(cvalue)
         if only_if_changed:
-            rv = table.query(KeyConditionExpression=Key("ckey").eq(ckey))
-            if len(rv["Items"]) == 1 and (rv["Items"][0]["cvalue"] == new_value):
+            rv = self._client.query(
+                TableName=cn,
+                KeyConditionExpression="ckey = :ckey",
+                ExpressionAttributeValues={":ckey": {"S": ckey}},
+            )
+            if len(rv["Items"]) == 1 and (rv["Items"][0]["cvalue"]["S"] == new_value):
                 self._logger.info(f"APP: put: Cache key {ckey} value unchanged")
                 return
 
         item = {
-            "ckey": ckey,
-            "cvalue": new_value,
-            "update_datetime": datetime.now(tz.tzutc()).isoformat(),
+            "ckey": {"S": ckey},
+            "cvalue": {"S": new_value},
+            "update_datetime": {"S": datetime.now(tz.tzutc()).isoformat()},
         }
         self._logger.debug(
             "APP: put: Setting cache key {} to table {} value {}".format(
-                ckey, TN_LOOKUP["cache"], new_value
+                ckey, cn, new_value
             )
         )
-        entries_per_title = {t: len(v) for t, v in cvalue.items()}
-        self._logger.info(f"APP: put: atinfo counts:{entries_per_title}")
-
-        table.put_item(Item=item)
+        if isinstance(cvalue, dict):
+            entries_per_title = {t: len(v) for t, v in cvalue.items()}
+            self._logger.info(f"APP: put: counts:{entries_per_title}")
+        self._client.put_item(TableName=cn, Item=item)
 
     def delete(self, ckey):
         self._logger.info(f"APP: delete: Deleting ckey {ckey} from cache")
-        table = self._conn.Table(TN_LOOKUP["cache"])
-        table.delete_item(Key={"ckey": ckey})
+        self._client.delete_item(
+            TableName=TN_LOOKUP["cache"], Key={"ckey": {"S": ckey}}
+        )

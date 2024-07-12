@@ -3,13 +3,13 @@
         "app_function": "wsgi.app",
         "profile_name": "plsnr",
         "project_name": "plsnr-slack-app",
-        "runtime": "python3.12",
+        "runtime": "python3.11",
         "log_level": "INFO",
         "s3_bucket": "zappa-plsnr-dev",
         "keep_warm": true,
         "delete_local_zip": true,
         "num_retained_versions": 20,
-        "exclude": ["*.gz", "*.zip", ".pytest_cache/*"],
+        "exclude": ["*.zip", ".pytest_cache/*"],
         "environment_variables": {
             "PLSNRENV": "AWSDev"
         },
@@ -18,7 +18,8 @@
         "async_resources": false,
         "events": [{
             "function": "tasks.prime_cache",
-            "expression": "rate(1 hour)"
+            "expression": "rate(1 hour)",
+            "enabled": false
         }]
     },
 
@@ -32,7 +33,7 @@
         "keep_warm": true,
         "delete_local_zip": true,
         "num_retained_versions": 20,
-        "exclude": ["*.gz", "*.zip", ".pytest_cache/*"],
+        "exclude": ["*.zip", ".pytest_cache/*"],
         "environment_variables": {
             "PLSNRENV": "AWSProd"
         },

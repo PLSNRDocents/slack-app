@@ -1,4 +1,4 @@
-# Copyright 2019 by J. Christopher Wagner (jwag). All rights reserved.
+# Copyright 2019-2024 by J. Christopher Wagner (jwag). All rights reserved.
 
 """
 Async handler.
@@ -9,8 +9,6 @@ There are 2 models - event_loop (local) and zappa (AWS).
 import logging
 
 import asyncio
-
-from zappa.asynchronous import run
 
 event_loop = asyncio.new_event_loop()
 
@@ -29,4 +27,6 @@ def run_async(mode, func, *args, **kwargs):
     if mode == "ev":
         event_loop.call_soon_threadsafe(func, *args)
     else:
+        from zappa.asynchronous import run
+
         run(func, args, kwargs)
