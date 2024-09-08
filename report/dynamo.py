@@ -93,8 +93,8 @@ class DDBCache:
                 )
             return None
         cvalue = json.loads(rv["Items"][0]["cvalue"]["S"])
-        self._logger.debug(f"APP: get: {cvalue.items()}")
         if isinstance(cvalue, dict):
+            self._logger.debug(f"APP: get: {cvalue.items()}")
             entries_per_title = {t: len(v) for t, v in cvalue.items()}
             self._logger.info(f"APP: get: atinfo counts:{entries_per_title}")
         return cvalue

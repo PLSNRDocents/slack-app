@@ -102,6 +102,7 @@ if __name__ == "__main__":
     app.ddb.create_all()
     get_bot_info()
 
+    threading.Thread(target=lambda: asyncev.run_loop(asyncev.event_loop)).start()
+
     app.run(host="localhost", port=6002, debug=True, use_reloader=False)
     asyncev.event_loop.call_soon_threadsafe(asyncev.event_loop.stop)
-    threading.Thread(target=lambda: asyncev.run_loop(asyncev.event_loop)).start()
